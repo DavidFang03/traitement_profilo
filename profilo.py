@@ -49,7 +49,8 @@ def boundaries_profile(profile):
     profile (numpy.ndarray): tableau 1D
     '''
     lenX = np.shape(profile)[0]
-    nonzero_indices = np.nonzero(profile)[0]
+    print(0.12*np.min(profile))
+    nonzero_indices = np.where(profile < 0.12*np.min(profile))[0]
 
     # Vérifier si l'array contient des éléments non nuls
     if len(nonzero_indices) > 0:
@@ -62,16 +63,18 @@ def boundaries_profile(profile):
     else:
         raise Exception("Le profil ne contient que des zéros.")
 
-    len_crat = i2-i1
+    return i1, i2
 
-    x1 = i1 + int(0.15 * len_crat)
-    x2 = i1 + int(0.66 * len_crat)
+    # len_crat = i2-i1
 
-    return x1, x2
+    # x1 = i1 + int(0.15 * len_crat)
+    # x2 = i1 + int(0.66 * len_crat)
+
+    # return x1, x2
 # %%
 
 
-def frame_to_profile(frame,theta):
+def frame_to_profile(frame, theta):
     """
     Convertit une image donnée en un profil en traitant l'image pour détecter et analyser la ligne de profil.
     Renvoie le profil et la position du profil.
@@ -111,13 +114,11 @@ def frame_to_profile(frame,theta):
     Xbaseline = a * rangeY + b
     # Si on veut tracer sur l'image, on ne veut que des valeurs entières
     Xbaseline_int = np.astype(Xbaseline, np.int16)
-    # print(np.shape(Xbaseline), np.shape(rangeY), lenY)
 
     # ! PROFIL
     profile = np.zeros(lenY)
     profile_between_y1_and_y2 = z(Xmax[y1:y2], Xbaseline[y1:y2], theta)
 
-    # print(np.shape(profile[y1:y2]), np.shape(profile_between_y1_and_y2))
     profile[y1:y2] = np.copy(profile_between_y1_and_y2)
 
     return profile, (a, b)
@@ -138,11 +139,10 @@ def fit(profile):
         popt, pcov = curve_fit(hyperbolic, rangeX[x1:x2], profile[x1:x2])
     except RuntimeError as e:
         if "Optimal parameters not found" in str(e):
-            print("Echec fit - check theta")
-            popt = (0,0,0,0)
+            print("Echec fit - setting to (0,0,0,0) - check theta")
+            popt = (0, 0, 0, 0)
         else:
             raise  # Relève l'erreur si ce n'est pas celle attendue
-
 
     return popt
 
@@ -155,6 +155,8 @@ def plot_profile_and_fit(profile, fit_profile=None):
     fig2, ax2 = plt.subplots()
     rangeX = np.arange(len(profile))
     ax2.plot(rangeX, profile)
+    x1, x2 = boundaries_profile(profile)
+    ax2.plot(rangeX[x1:x2], profile[x1:x2], label="boundaries")
     if fit_profile is not None:
         ax2.plot(rangeX, fit_profile)
 
@@ -164,8 +166,8 @@ def plot_profile_and_fit(profile, fit_profile=None):
 #     test_frame(frame)
 #     return np.shape(frame)
 
-def test_frame_path(frame_path,rotate=False):
-    fig,ax=plt.subplots()
+def test_frame_path(frame_path, rotate=False):
+    fig, ax = plt.subplots()
     frame = cv2.imread(frame_path, cv2.IMREAD_COLOR)
     if rotate:
         frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
@@ -173,15 +175,17 @@ def test_frame_path(frame_path,rotate=False):
     ax.imshow(frame)
     return np.shape(frame)
 
+
 def test_frame(frame):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # ! get PROFIL and FIT
-    profile, _ = frame_to_profile(frame,theta=np.radians(10))
+    profile, _ = frame_to_profile(frame, theta=np.radians(10))
     rangeX = get_xdata_profile(profile)
     popt = fit(profile)
     hyperbolic_profile = hyperbolic(rangeX, *popt)
     plot_profile_and_fit(profile, hyperbolic_profile)
+
     return np.shape(frame)
 
 
@@ -196,4 +200,6 @@ if __name__ == "__main__":
     execution_time = end_time - start_time
     print(
         f"Temps d'exécution : {execution_time:.2f} secondes pour une image de taille {dims}")
+
+    plt.legend()
     plt.show()

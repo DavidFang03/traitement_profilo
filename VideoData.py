@@ -9,6 +9,9 @@ import os
 import json
 
 
+def dumb_init():
+    pass
+
 class VideoData:
     '''
     From a video path, generate and export a npz file with the profiles of the video.
@@ -105,17 +108,6 @@ class VideoData:
             frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
         self.firstFrame = np.copy(frame)
 
-    def run_film(self) -> None:
-        '''
-        The video is read frame by frame here.
-        Are appended
-        - Each profile > listOf_profiles
-        - Each baseline > baselineA and baselineB
-        - first/last frame > firstFrame/lastFrame
-        '''
-        while self.cap.isOpened() and self.frame_nb < self.max_frame:
-            self.iterate()
-
     def appendData_frame(self, img: ImageData.ImageData) -> None:
         '''
         Process the frame
@@ -141,7 +133,7 @@ class VideoData:
         return ImageData.ImageData(frame, rangeX=self.rangeX, rangeY=self.rangeY,
                                    res=self.res, theta=self.theta, mass=self.mass, height=self.height, frame_nb=self.frame_nb)
 
-    def iterate(self, i: int) -> ImageData.ImageData:
+    def iterate(self) -> ImageData.ImageData:
         self.frame_nb += 1
         ret, frame = self.cap.read()
         if not ret:
@@ -157,7 +149,9 @@ class VideoData:
         return image
 
     def iterate_anim(self, i: int) -> tuple:
-        image = self.iterate(i)
+        if i == 0:
+            print("WTFFFFFFFFFFFF")
+        image = self.iterate()
         self.framed_showed.set_array(image.frame)
         image.draw()
         self.framed_drawed.set_array(image.frame)
@@ -175,13 +169,25 @@ class VideoData:
         else:
             self.perp_profile_showed.set_data(self.arrS, self.arr_z_imid)
 
-        self.aniaxes[1, 1].set_title(
-            f"Frame {self.frame_nb}/{self.max_frame}")
+        # self.aniaxes[1, 1].set_title(
+        #     f"Frame {self.frame_nb}/{self.max_frame}")
+        print(f"Frame {i}-{self.frame_nb}/{self.max_frame} {i-self.frame_nb}", self.max_frame, self.min_frame, self.nb_frames_anim)
+        self.infostext.set_text(f"Frame {i}-{self.frame_nb}/{self.max_frame} \n Theta: {self.theta_deg}° \n Filename: {self.vidpath} \n Height: {self.height} m \n Mass: {self.mass}")
 
-        return self.framed_showed, self.framed_drawed, self.profile_showed, self.profile_fit_showed, self.perp_profile_showed
+        return self.framed_showed, self.framed_drawed, self.profile_showed, self.profile_fit_showed, self.perp_profile_showed, self.infostext
 
 
     def init_anim(self) -> None:
+        """
+        Initialise les plots pour l'animation.
+        - self.framed_showed : image originale
+        - self.framed_drawed : image avec tracés
+        - self.profile_showed : profil
+        - self.profile_fit_showed : fit hyperbolique du profil
+        - self.perp_profile_showed : profil perpendiculaire
+        - self.infostext : infos : frame number, theta, filename, height, mass     
+
+        """
         self.anifig, self.aniaxes = plt.subplots(2, 3)
         self.framed_showed = self.aniaxes[0, 0].imshow(
             self.firstFrame, animated=True)
@@ -195,6 +201,9 @@ class VideoData:
 
         self.perp_profile_showed, = self.aniaxes[1, 2].plot(
             self.rangeX, np.zeros(self.X), label="Profil perpendiculaire")
+        
+        self.infostext = self.aniaxes[1,1].text(0.5, 0.5, "Frame 0", bbox={'facecolor':'w', 'alpha':0.5, 'pad':5},
+                transform=self.aniaxes[1,1].transAxes, ha="center")
 
         self.aniaxes[1, 2].set_title("Profil perpendiculaire")
         self.aniaxes[1, 2].set_ylim(-100, 10)
@@ -204,10 +213,11 @@ class VideoData:
         self.init_anim()
 
         self.nb_frames_anim = self.max_frame - self.min_frame
+        print(self.frame_nb, self.max_frame, self.min_frame, self.nb_frames_anim)
 
-        self.iterate_anim(0)
-        self.animate = animation.FuncAnimation(
-            self.anifig, self.iterate_anim, frames=self.nb_frames_anim, interval=1000 / self.fps, blit=True, repeat=False)
+        self.iterate_anim(0) # est en fait automatiquement appelé par FuncAnimation lorsque aucune init_func n'est donnée
+        self.funcanim = animation.FuncAnimation(
+            self.anifig, self.iterate_anim, init_func=dumb_init, frames=self.nb_frames_anim, interval=1000 / self.fps, blit=True, repeat=False)
         self.anifig.tight_layout()
         # self.animate.save("lastanimation.mp4", fps=self.fps,
         #                   extra_args=['-vcodec', 'libx264'])
@@ -310,7 +320,10 @@ def go(params : dict) -> None:
 
     print(p)
 
+    manager = plt.get_current_fig_manager()
+    manager.full_screen_toggle()
     plt.show()
+
     p.export_npz()
 
 

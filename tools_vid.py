@@ -18,9 +18,9 @@ def get_MinMax_frameNb(videoData: VideoData.VideoData) -> tuple[int, int]:
 
 
 def get_res(videoData: VideoData.VideoData) -> tuple[int, int]:
-    '''
+    """
     Renvoie la résolution de l'image. Attention à la rotation.
-    '''
+    """
     width = int(videoData.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(videoData.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     if videoData.rotate:

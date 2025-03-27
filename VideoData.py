@@ -14,10 +14,10 @@ class VideoData:
     From a video path, generate and export a npz file with the profiles of the video.
     '''
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, params) -> None:
         '''
         :params
-        - vid_path: path to the video (str)
+        - vidpath: path to the video (str)
         - theta : angle (degrees)
         - rotate : rotate the video (bool)
         - t1 : start time (s)
@@ -26,8 +26,9 @@ class VideoData:
         - height : height (m)
         '''
         defaults = {
-            "vid_path": "",
-            "theta": 30,
+            "vidpath": "",
+            "theta_deg": 30,
+            "theta": np.radians(30),
             "rotate": False,
             "t1": 0,
             "t2": None,
@@ -38,17 +39,19 @@ class VideoData:
         }
 
         for key, value in defaults.items():
-            setattr(self, key, kwargs.get(key, value))
+            setattr(self, key, params.get(key, value))
 
         # Ajout des autres attributs dynamiques
-        for key, value in kwargs.items():
+        for key, value in params.items():
             if key not in defaults:
                 setattr(self, key, value)
+
+        self.theta = np.radians(self.theta_deg)
 
         # ! Videos Infos
         self.frame_nb = 0
 
-        self.cap = cv2.VideoCapture(self.vid_path)
+        self.cap = cv2.VideoCapture(self.vidpath)
         if not self.cap.isOpened():
             raise Exception("cap is not opened - check path")
 
@@ -79,8 +82,6 @@ class VideoData:
         # * Profile
         self.listOf_profiles = []  # List of 2D profiles (3D)
         # X axis of the profile: set by the width of the video.
-        self.rangeX = []
-        self.rangeY = []
         self.rangeS = []
 
         # * Debug
@@ -100,6 +101,8 @@ class VideoData:
             ret, frame = self.cap.read()
             if not ret:
                 raise Exception("Error reading frame - min_frame too big?")
+        if self.rotate:
+            frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
         self.firstFrame = np.copy(frame)
 
     def run_film(self) -> None:
@@ -153,7 +156,7 @@ class VideoData:
         self.appendData_frame(image)
         return image
 
-    def iterate_anim(self, i: int) -> tuple[plt.AxesImage, plt.AxesImage, plt.Line2D, plt.Line2D, plt.Line2D]:
+    def iterate_anim(self, i: int) -> tuple:
         image = self.iterate(i)
         self.framed_showed.set_array(image.frame)
         image.draw()
@@ -173,11 +176,12 @@ class VideoData:
             self.perp_profile_showed.set_data(self.arrS, self.arr_z_imid)
 
         self.aniaxes[1, 1].set_title(
-            f"Frame {self.frame_nb/self.nb_frames_anim}")
+            f"Frame {self.frame_nb}/{self.max_frame}")
 
         return self.framed_showed, self.framed_drawed, self.profile_showed, self.profile_fit_showed, self.perp_profile_showed
 
-    def animate(self) -> None:
+
+    def init_anim(self) -> None:
         self.anifig, self.aniaxes = plt.subplots(2, 3)
         self.framed_showed = self.aniaxes[0, 0].imshow(
             self.firstFrame, animated=True)
@@ -194,7 +198,10 @@ class VideoData:
 
         self.aniaxes[1, 2].set_title("Profil perpendiculaire")
         self.aniaxes[1, 2].set_ylim(-100, 10)
-        # init for blitting
+
+    def animate(self) -> None:
+        # init
+        self.init_anim()
 
         self.nb_frames_anim = self.max_frame - self.min_frame
 
@@ -205,10 +212,6 @@ class VideoData:
         # self.animate.save("lastanimation.mp4", fps=self.fps,
         #                   extra_args=['-vcodec', 'libx264'])
 
-    # def init_funcanim(self):
-    #     self.profile_showed.set_data([],[])
-    #     self.profile_fit_showed.set_data([],[])
-    #     return self.framed_showed, self.framed_drawed, self.profile_showed, self.profile_fit_showed
 
     def export_npz(self) -> None:
         self.process_before_export()
@@ -227,8 +230,8 @@ class VideoData:
         return f"{self.X}x{self.Y} Video"
 
 
-def get_videos_firstinfos(vid_path: str) -> float:
-    cap = cv2.VideoCapture(vid_path)
+def get_videos_firstinfos(vidpath: str) -> float:
+    cap = cv2.VideoCapture(vidpath)
     if not cap.isOpened():
         raise Exception("cap is not opened - check path")
 
@@ -238,52 +241,24 @@ def get_videos_firstinfos(vid_path: str) -> float:
     return duration
 
 
-def main() -> None:
-    params = init_params()
-    filepath = params["filepath"]
-    mass = params["mass"]
-    height = params["height"]
-    theta = params["theta"]
-    t1 = params["t1"]
-    t2 = params["t2"]
-    rotate = params["rotate"]
-    info = params["info"]
-
-    go(filepath, t1, t2,
-       rotate, mass, height, theta, info)
-
-    again = True
-    while again:
-        print("run again ? (y/n)")
-        useragain = input()
-        if useragain == "y":
-            print("ok, running again")
-            go(filepath, t1, t2,
-               rotate, mass, height, theta, info)
-            again = True
-        else:
-            print("bye")
-            again = False
-
-
-if __name__ == "__main__":
-    main()
-
-
 def init_params() -> dict:
+    """
+    Initialize the parameters for the video processing : vidpath, mass, height, angle, t1, t2, rotate, info
+    Either uses the last parameters used or asks the user for new parameters.
+    """
     with open('lastparams.json', 'r') as openfile:
         json_object = json.load(openfile)
 
-    print(f"lastparams are {json_object} run with the same ? (y/n)")
-    same = input()
+    print(f"lastparams are {json_object}")
+    same = input("> Run with the same params ? (y/n)")
     if same == "n":
-        params = ask_user_for_params()
+        params = ask_user_for_params(lastparams=json_object)
     else:
         params = json_object
 
-    filepath = params["filepath"]
-    if not os.path.isfile(filepath):
-        raise Exception(f"{filepath} not found")
+    vidpath = params["vidpath"]
+    if not os.path.isfile(vidpath):
+        raise Exception(f"{vidpath} not found")
 
     json_object = json.dumps(params, indent=4)
     with open("lastparams.json", "w") as outfile:
@@ -292,43 +267,43 @@ def init_params() -> dict:
     return params
 
 
-def ask_user_for_params() -> dict:
-    folder = "./vids/1403"
-    print('filename')
-    filename = input()
-    filepath = f"{folder}/{filename}.mp4"
-    if not os.path.isfile(filepath):
-        raise Exception(f"{filepath} not found")
-    duration = get_videos_firstinfos(filepath)
-    print('Numéro de masse')
-    mass = int(input())
-    print("Hauteur (m)")
-    height = float(input())
-    print("Angle (°)")
-    theta = np.radians(float(input()))
-    print("t1 (s)")
-    t1 = float(input())
-    print(f"t2 (max:{duration:.2f}) (s) ?")
-    t2 = float(input())
-    print("rotate ? (y/n)")
-    rotate = input()
-    if rotate == "y":
-        rotate = True
-    else:
-        rotate = False
-    print("info ? vide sinon")
-    info = input()
+def ask_user_for_params(lastparams:dict) -> dict:
+    """
+    Ask the user for the parameters of the video processing : vidpath, mass, height, angle, t1, t2, rotate, info
+    Suggests to use the last params.
+    """
+    # ! date
+    date = input(f"DATE ? ({lastparams["date"]})") or lastparams["date"]
+    folder = f"./vids/{date}"
 
-    params = {"filepath": filepath, "rotate": rotate, "mass": mass,
-              "height": height, "theta": theta, "info": info,
-              "t1": t1, "t2": t2}
+    # ! vidname
+    vidname = input(f'NOM DU FICHIER ? (seulement le nom) - ({lastparams["vidpath"]})') or lastparams["vidname"]
+    vidpath = f"{folder}/{vidname}.mp4"
+    if not os.path.isfile(vidpath):
+        raise Exception(f"{vidpath} not found")
+    else:
+        print(f"ok, opening {vidpath}")
+    
+
+    duration = get_videos_firstinfos(vidpath)
+
+    mass = int(input(f'MASSE ? ({lastparams["mass"]})') or lastparams["mass"])
+    height = float(input(f'HAUTEUR ? ({lastparams["height"]})') or lastparams["height"])
+    theta_deg = float(input(f'THETA (deg) ? ({lastparams["theta_deg"]})') or lastparams["theta_deg"])
+    t1 = float(input(f'T1 ? (max:{duration:.2f} s) ({lastparams["t1"]})') or lastparams["t1"])
+    t2 = float(input(f'T2 ? (max:{duration:.2f} s) ({lastparams["t2"]})') or lastparams["t2"])
+    rotate = input(f'ROTATE ? ({lastparams["rotate"]})') or lastparams["rotate"]
+    rotate = rotate == "y" or rotate == "True" or rotate == "true"
+    info = input("INFO ? vide sinon")
+
+    params = {"date":date, "vidname":vidname, "vidpath": vidpath, "rotate": rotate, "mass": mass,
+              "height": height, "theta_deg": theta_deg,
+              "t1": t1, "t2": t2, "info": info,}
     return params
 
 
-def go(filepath, t1, t2,
-       rotate, mass, height, theta, info):
-    p = VideoData(filepath, t1=t1, t2=t2,
-                  rotate=rotate, mass=mass, height=height, theta=theta, info=info)
+def go(params : dict) -> None:
+    p = VideoData(params)
 
     p.set_up()
     p.animate()
@@ -337,3 +312,23 @@ def go(filepath, t1, t2,
 
     plt.show()
     p.export_npz()
+
+
+def main() -> None:
+    params = init_params()
+    go(params)
+
+    again = True
+    while again:
+        useragain = input("Run again ? (y/n)")
+        if useragain == "y":
+            print("OK, running again")
+            go(params)
+            again = True
+        else:
+            print("Bye")
+            again = False
+
+
+if __name__ == "__main__":
+    main()

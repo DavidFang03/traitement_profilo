@@ -161,7 +161,7 @@ class ImageData:
             self.rangeY[self.i1:self.i2], *self.popt))
 
 
-def get_frame_fromPath(img_path: str, **kwargs) -> np.ndarray:
+def get_frame_fromPath(img_path: str, rotate=False) -> np.ndarray:
     '''
     When user wants to set the frame from a path.
     Sets 
@@ -169,7 +169,6 @@ def get_frame_fromPath(img_path: str, **kwargs) -> np.ndarray:
     - rotate
     '''
     frame = cv2.imread(img_path, cv2.IMREAD_COLOR)
-    rotate = kwargs.get("rotate", False)
     if rotate:
         frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
     return frame
@@ -178,7 +177,8 @@ def get_frame_fromPath(img_path: str, **kwargs) -> np.ndarray:
 if __name__ == "__main__":
     # print(type(cv2.imread("test.png", cv2.IMREAD_COLOR)))
     # Test the ImageData class
-    frame = get_frame_fromPath("test.png")
+    # frame = get_frame_fromPath("data_test/test10_vert.png", rotate=False)
+    # frame = get_frame_fromPath("data_test/test10_horiz.png", rotate=True)
     img_data = ImageData(frame, hyperbolic_threshold=0.25)
     img_data.run()
     img_data.draw()

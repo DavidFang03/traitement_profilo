@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-from profilo import frame_to_profile, plot_profile_and_fit
+from VideoData import frame_to_profile, plot_profile_and_fit
 import time
 from datetime import datetime
 
@@ -33,7 +33,8 @@ def profilo_film(film_path, theta, **kwargs):
     # Mais les baselines ne sont pas forcément parallèles. Chaque $a$ est différent -> On prend la moyenne (d'autres meilleures méthodes ?).
     a_avg = np.mean(A)
     # On applique la formule (origine en haut a gauche de de l'image)
-    S = B*np.cos(np.arctan(a_avg))
+    # S = B*np.cos(np.arctan(a_avg))
+    S = B
 
     X1 = S
     X2 = np.arange(len(list_of_profiles[0]))
@@ -41,48 +42,7 @@ def profilo_film(film_path, theta, **kwargs):
     return X1, X2, list_of_profiles, (nb_frames, res)
 
 
-def get_min_frame_and_max_frame(t1, t2, cap):
-    '''
-    Convertit les timestamps en frames.
-    '''
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    if t2 is not None:
-        max_frame = int(t2 * fps)
-    else:
-        max_frame = np.inf
-    min_frame = int(t1 * fps)
-    print(t2, fps, max_frame)
-    return min_frame, max_frame
-
-
-def get_res(cap):
-    '''
-    Renvoie la résolution de l'image.
-    '''
-    width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-    height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-    res = np.array([width, height], np.int16)
-    return res
-
-
-def get_list_of_profiles_and_fit(film_path, t1, t2, theta, rotate):
-    fig, ax = plt.subplots()
-    fig2, ax2 = plt.subplots()
-
-    frame_nb = 0
-    list_of_profiles = []
-    # position x de la baseline à chaque instant sur le haut de l'image.
-    A = []
-    B = []
-    cap = cv2.VideoCapture(film_path)
-    if not cap.isOpened():
-        raise Exception("cap is not opened - check path")
-
-    # ! get min frame and max frame
-    min_frame, max_frame = get_min_frame_and_max_frame(t1, t2, cap)
-    print(t2, max_frame)
-    #!get res
-    res = get_res(cap)
+def get_list_of_profiles_and_fit(videoData):
 
     # ! read frames
     while cap.isOpened() and frame_nb < max_frame:
@@ -93,17 +53,15 @@ def get_list_of_profiles_and_fit(film_path, t1, t2, theta, rotate):
         frame_nb += 1
         # print(frame_nb, cap.get(cv2.CAP_PROP_POS_FRAMES), (min_frame, max_frame),
         #       (frame_nb > min_frame, frame_nb < max_frame))
-        if frame_nb < min_frame:
-            continue
 
         if not ret:
-            break
+            raise Exception("Error reading frame - max_frame too big?")
 
         if rotate:
             frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
 
         # ! get profile
-        profile, (a, b) = frame_to_profile(frame, theta)
+        profile, (a, b), newframe = frame_to_profile(frame, theta)
 
         # ! gather data
         list_of_profiles.append(np.copy(profile))
@@ -141,13 +99,6 @@ def test_film_path(path_film="./test.mp4", theta=np.radians(30), t1=5, t2=6):
     return nb_frames, res, npz_name
 
 
-def generate_file_name(info, ext="npz"):
-    now = datetime.now()
-    date_str = now.strftime("%d-%m")
-    time_str = now.strftime("%H-%M-%S")
-    return f"{date_str}_{time_str}_{info}.{ext}"
-
-
 def get_profile3D(path_film, theta, t1=0, t2=None, **kwargs):
     h = kwargs.get("h", None)
     scale = kwargs.get("scale", None)
@@ -172,7 +123,7 @@ if __name__ == "__main__":
 
     # nb_frames, res, _ = test_film_path()
     nb_frames, res, npz_name = get_profile3D(
-        "./vids/2102/1.mp4", np.radians(30), t1=2, t2=10, rotate=True)
+        "./vids/2102/3.mp4", np.radians(30), t1=2, t2=10, rotate=True)
 
     end_time = time.time()
 

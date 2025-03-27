@@ -139,7 +139,7 @@ class VideoData:
 
     def from_frame_to_Image(self, frame: np.ndarray) -> ImageData.ImageData:
         return ImageData.ImageData(frame, rangeX=self.rangeX, rangeY=self.rangeY,
-                                   res=self.res, theta=self.theta, mass=self.mass, height=self.height)
+                                   res=self.res, theta=self.theta, mass=self.mass, height=self.height, frame_nb=self.frame_nb)
 
     def iterate(self, i: int) -> ImageData.ImageData:
         self.frame_nb += 1

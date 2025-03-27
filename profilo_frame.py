@@ -141,7 +141,7 @@ def fit_hyperbolic(img):
             utilit.hyperbolic, img.rangeY[img.i1:img.i2], img.profile[img.i1:img.i2], p0=p0)
     except RuntimeError as e:
         if "Optimal parameters not found" in str(e):
-            print("Echec fit - setting to (0,0,0,0) - check theta or rotate")
+            print(f"Frame {img.frame_nb} - Echec fit : setting to (0,0,0,0). Check THETA ({img.theta}) or ROTATE")
             img.popt = (img.hyperbolic_threshold*np.min(img.profile), 0, 0, 0)
             np.savetxt("test.txt", np.column_stack(
                 (img.rangeY[img.i1:img.i2], img.profile[img.i1:img.i2])))

@@ -25,6 +25,8 @@ class ImageData:
         self.mass = kwargs.get("mass", None)
         self.height = kwargs.get("height", None)
 
+        self.frame_nb = kwargs.get("frame_nb", 0)
+
         self.frame = frame
         self.gray_frame = []
 
@@ -178,7 +180,7 @@ if __name__ == "__main__":
     # print(type(cv2.imread("test.png", cv2.IMREAD_COLOR)))
     # Test the ImageData class
     # frame = get_frame_fromPath("data_test/test10_vert.png", rotate=False)
-    # frame = get_frame_fromPath("data_test/test10_horiz.png", rotate=True)
+    frame = get_frame_fromPath("data_test/test10_horiz.png", rotate=True)
     img_data = ImageData(frame, hyperbolic_threshold=0.25)
     img_data.run()
     img_data.draw()

@@ -35,10 +35,10 @@ class ImageData:
         # Horizontal and vertical length (orientation vers la droite et le BAS)
         self.X, self.Y = self.res
 
-        # ! boundariesCrater
+        # ! boundariesNappe :  limites de la nappe laser (seule région où on peut obtenir des données)
         self.y1 = 0
         self.y2 = 0
-        #! boundariesBaseline
+        #! boundariesBaseline :  limites de la région centrale du cratère (partie à ignorer pour la baseline)
         self.ya = 0
         self.yb = 0
         #! boundariesHyperbolic # Pour le fit on veut seulement la partie hyperbolique du profil
@@ -115,16 +115,25 @@ class ImageData:
         - Argmax
         - Baseline
         '''
-        for i in range(self.Y):  # le premier indice (i) est la coordonnée verticale.
-            try:
-                self.frame[i, int(self.baselinea * i + self.baselineb),
-                           :] = [255, 255, 0]  # draw baseline
-            except IndexError:
-                print(
-                    "Error: Index out of bounds while drawing baseline. Rotate ?")
-            if self.ya > i > self.y1 or self.yb < i < self.y2:
-                # draw areas where baseline is fit
-                self.frame[i, self.Xline[i], :] = [255, 255, 255]
+        # for i in range(self.Y):  # le premier indice (i) est la coordonnée verticale.
+        #     if self.ya > i > self.y1 or self.yb < i < self.y2:
+        #         # !draw areas where baseline is fit
+        #         self.frame[i, self.Xline[i], :] = [255, 255, 0]
+        # ! draw argmax        
+        self.frame[self.rangeY, self.Xline, :] = [0, 255, 0]  
+        # ! draw baseline
+        try:
+            self.frame[self.rangeY, self.Xbaseline_int, :] = [0, 0, 255] 
+        except IndexError:
+            print("Error: Index out of bounds while drawing baseline. Rotate ?")
+        # ! draw areas where baseline fit is done
+        self.frame[self.y1, : , :] = [195, 100, 25]
+        self.frame[self.ya, : , :] = [195, 100, 25]
+        self.frame[self.yb, : , :] = [195, 100, 25]
+        self.frame[self.y2-1, : , :] = [195, 100, 25]
+        
+
+
 
     def plot(self) -> None:
         '''
@@ -173,6 +182,7 @@ def get_frame_fromPath(img_path: str, rotate=False) -> np.ndarray:
     frame = cv2.imread(img_path, cv2.IMREAD_COLOR)
     if rotate:
         frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return frame
 
 

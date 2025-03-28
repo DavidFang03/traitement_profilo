@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tools_ThreeD
 from matplotlib import cm
-
+import utilit
 
 def return_update_func(fig, ax):
     def update_view(event):
@@ -31,15 +31,34 @@ class ThreeD_Data:
         - profiles
         '''
         # ! IMPORT
+        
         self.npz_path = npz_path
-        data = np.load(npz_path)
+        data = np.load(npz_path,allow_pickle=True)
 
+        params_npz = {}
+
+        params_npz["vidpath"]=str(data["vidpath"])
+        params_npz["timestamp"]=str(data["timestamp"])
+        params_npz["npz_timestamp"] = utilit.get_timestamp()
+
+        # params_npz["Y"] = data["Y"]
+        params_npz["height"] = float(data["height"])
+        if None in data["scale"]:
+            params_npz["scale"] = 0
+        else:
+            params_npz["scale"] = float(data["scale"])
+        params_npz["theta_deg"] = float(data["theta_deg"])
+        params_npz["mass"] = int(data["mass"])
+        params_npz["date"] = str(data["date"])
+
+        for key, value in params_npz.items():
+            setattr(self, key, value)
+        
+        self.params_npz = params_npz
         self.arrS = data["arrS"]
-        self.Y = data["Y"]
-        self.height = data["height"]
-        self.scale = data["scale"]
-        self.theta = data["theta"]
         self.profiles = data["profiles"]
+        self.Y  = data["Y"]
+        self.theta = np.radians(self.theta_deg)
 
         # ! INIT
         self.rangeY = np.arange(self.Y)
@@ -101,7 +120,7 @@ class ThreeD_Data:
                                   self.profile_fit_reduced, cmap=cm.inferno, alpha=0.7)
         # Ca me semble inutile de se faire chier a tracer le fit seulement dans la zone. Autant tout tracer + accelere avec numpy. Jouer avec transparence, cmap, et mettre un bouton toggle puor masquer ou non.
 
-    def end(self):
+    def end_plot(self):
         self.ax_profile.axis('equal')
         self.ax_profile.set_xlabel('S')
         self.ax_profile.set_ylabel('Y')
@@ -127,13 +146,60 @@ class ThreeD_Data:
         # plt.legend()
         plt.show()
 
+    def from_everything_to_formatted_data(self):
+        '''
+        On a besoin de :
+        - masse
+        - hauteur
+        - scale
+        - popt (zc, b, c) #
+        - uncertainties #
+        - theta
+        - date
+        - timestamp
+        - npz_timestamp
+        '''
+        big_data = self.params_npz.copy()
+
+        big_data["zc"] = float(self.popt[0])#zc, 
+        big_data["b"] = float(self.popt[1])#b, 
+        big_data["c"] = float(self.popt[2])#c, 
+
+        big_data["u_zc"] = float(self.uncertainties[0])#u_zc, 
+        big_data["u_b"] = float(self.uncertainties[1])#u_b, 
+        big_data["u_c"] = float(self.uncertainties[2])#u_c, 
+
+        big_data["bottom"] = np.min(self.profiles)
+        return big_data
+        
+
+    def export_data(self):
+        '''
+        self.popt, self.uncertainties
+        '''
+
+        big_data = self.from_everything_to_formatted_data()
+        print(big_data)
+        utilit.add_to_history(big_data, "./DATA.json")
+
+        self.params_npz["popt"] = list(self.popt)
+        self.params_npz["uncertainties"] = list(self.uncertainties)
+
+    def update_history_npz(self):
+        utilit.add_to_history(self.params_npz, "history_npz.json")
+
+        
+
+
 
 if __name__ == "__main__":
     # Example usage
-    npz_path = "./datanpz/13-03_h1-985_m10.npz"
+    npz_path = "./datanpz/10_1403_h1-985_m12.npz"
     three_d_data = ThreeD_Data(npz_path)
     three_d_data.plot_profile3D()
     three_d_data.fit3D()
     three_d_data.plot_fit3D()
     three_d_data.plot_both()
-    three_d_data.end()
+    three_d_data.end_plot()
+    three_d_data.export_data()
+    three_d_data.update_history_npz()

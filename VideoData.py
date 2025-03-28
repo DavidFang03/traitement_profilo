@@ -8,10 +8,6 @@ import utilit
 import os
 import json
 
-
-def dumb_init():
-    pass
-
 class VideoData:
     '''
     From a video path, generate and export a npz file with the profiles of the video.
@@ -28,7 +24,7 @@ class VideoData:
         - mass : mass number (int)
         - height : height (m)
         '''
-        defaults = {
+        mandatory = {
             "vidpath": "",
             "theta_deg": 30,
             "theta": np.radians(30),
@@ -41,14 +37,15 @@ class VideoData:
             "info": "",
         }
 
-        for key, value in defaults.items():
+        for key, value in mandatory.items():
             setattr(self, key, params.get(key, value))
 
         # Ajout des autres attributs dynamiques
         for key, value in params.items():
-            if key not in defaults:
+            if key not in mandatory:
                 setattr(self, key, value)
 
+        self.params = params
         self.theta = np.radians(self.theta_deg)
 
         # ! Videos Infos
@@ -91,6 +88,7 @@ class VideoData:
         self.firstFrame = []
         self.lastFrame = []
 
+
     def set_up(self) -> None:
         '''
         Here we set up the video
@@ -100,13 +98,26 @@ class VideoData:
         # ! Passer les frames non traitées
         frame = None
         while self.frame_nb < self.min_frame+1:
-            self.frame_nb += 1
-            ret, frame = self.cap.read()
-            if not ret:
-                raise Exception("Error reading frame - min_frame too big?")
+            frame = self.next_frame()
+        self.firstFrame = np.copy(frame)
+
+    def next_frame(self) -> np.ndarray:
+        """
+        Get the next frame of the video.
+        - Increment self.frame_nb
+        - Read the frame
+        - Convert to RGB
+        - Rotate the frame if needed
+        """
+        self.frame_nb += 1
+        ret, frame = self.cap.read()
+        if not ret:
+            raise Exception("Error reading frame - max_frame too big?")
         if self.rotate:
             frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
-        self.firstFrame = np.copy(frame)
+        # Convert to RGB
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        return frame
 
     def appendData_frame(self, img: ImageData.ImageData) -> None:
         '''
@@ -134,13 +145,7 @@ class VideoData:
                                    res=self.res, theta=self.theta, mass=self.mass, height=self.height, frame_nb=self.frame_nb)
 
     def iterate(self) -> ImageData.ImageData:
-        self.frame_nb += 1
-        ret, frame = self.cap.read()
-        if not ret:
-            raise Exception("Error reading frame - max_frame too big?")
-
-        if self.rotate:
-            frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+        frame = self.next_frame()
 
         image = self.from_frame_to_Image(frame)
 
@@ -149,15 +154,11 @@ class VideoData:
         return image
 
     def iterate_anim(self, i: int) -> tuple:
-        if i == 0:
-            print("WTFFFFFFFFFFFF")
         image = self.iterate()
+
         self.framed_showed.set_array(image.frame)
         image.draw()
         self.framed_drawed.set_array(image.frame)
-
-        # image.set_profile_on_lines(
-        #     self.profile_showed, self.profile_fit_showed)
 
         self.profile_showed.set_data(self.rangeY, image.profile)
         self.profile_fit_showed.set_data(self.rangeY[image.i1:image.i2], utilit.hyperbolic(
@@ -169,10 +170,10 @@ class VideoData:
         else:
             self.perp_profile_showed.set_data(self.arrS, self.arr_z_imid)
 
-        # self.aniaxes[1, 1].set_title(
-        #     f"Frame {self.frame_nb}/{self.max_frame}")
-        print(f"Frame {i}-{self.frame_nb}/{self.max_frame} {i-self.frame_nb}", self.max_frame, self.min_frame, self.nb_frames_anim)
-        self.infostext.set_text(f"Frame {i}-{self.frame_nb}/{self.max_frame} \n Theta: {self.theta_deg}° \n Filename: {self.vidpath} \n Height: {self.height} m \n Mass: {self.mass}")
+        self.infostext.set_text(f"Frame {self.frame_nb}/{self.max_frame} \n Theta: {self.theta_deg}° \n Filename: {self.vidpath} \n Height: {self.height} m \n Mass: {self.mass}")
+
+        if self.frame_nb>=self.max_frame:
+            print("Funcanimation probably finished")
 
         return self.framed_showed, self.framed_drawed, self.profile_showed, self.profile_fit_showed, self.perp_profile_showed, self.infostext
 
@@ -208,33 +209,45 @@ class VideoData:
         self.aniaxes[1, 2].set_title("Profil perpendiculaire")
         self.aniaxes[1, 2].set_ylim(-100, 10)
 
+    def dumb_init(self):
+        return self.framed_showed, self.framed_drawed, self.profile_showed, self.profile_fit_showed, self.perp_profile_showed, self.infostext
+
     def animate(self) -> None:
         # init
         self.init_anim()
 
-        self.nb_frames_anim = self.max_frame - self.min_frame
-        print(self.frame_nb, self.max_frame, self.min_frame, self.nb_frames_anim)
-
-        self.iterate_anim(0) # est en fait automatiquement appelé par FuncAnimation lorsque aucune init_func n'est donnée
+        self.nb_frames_anim = self.max_frame - self.min_frame - 1
+        # self.iterate_anim(0) # est en fait automatiquement appelé par FuncAnimation lorsque aucune init_func n'est donnée
         self.funcanim = animation.FuncAnimation(
-            self.anifig, self.iterate_anim, init_func=dumb_init, frames=self.nb_frames_anim, interval=1000 / self.fps, blit=True, repeat=False)
+            self.anifig, self.iterate_anim, init_func=self.dumb_init, frames=self.nb_frames_anim, interval=1000 / self.fps, blit=True, repeat=False)
         self.anifig.tight_layout()
         # self.animate.save("lastanimation.mp4", fps=self.fps,
         #                   extra_args=['-vcodec', 'libx264'])
 
 
     def export_npz(self) -> None:
+        """
+        Effecue process (retournement)
+        et exporte dans self.npz_name
+        """
         self.process_before_export()
-        npz_name = tools_vid.generate_file_name(self)
-        np.savez(f"./datanpz/{npz_name}", profiles=np.array(self.listOf_profiles),
-                 arrS=self.arrS, Y=self.Y, height=self.height, scale=self.scale, theta=self.theta, t1=self.t1, t2=self.t2)
+        self.npz_name = tools_vid.generate_file_name(self)
+        np.savez(f"./datanpz/{self.npz_name}", vidpath=self.vidpath, profiles=np.array(self.listOf_profiles),
+                 arrS=self.arrS, Y=self.Y, height=self.height, mass=self.mass, scale=self.scale, theta_deg=self.theta_deg, t1=self.t1, t2=self.t2, info=self.info, timestamp=self.timestamp, date=self.date)
 
     def process_before_export(self) -> None:
+        """
+        Retourne si mauvais signe
+        """
         if np.max(self.listOf_profiles) > np.abs(np.min(self.listOf_profiles)):
             self.listOf_profiles = -np.array(self.listOf_profiles)
         return
         self.baseline_a_avg = np.mean(self.baselineA)
         # self.baselineB = np.array(self.baselineB)
+
+    def add_to_history(self):
+        self.params["npz_name"] = self.npz_name
+        utilit.add_to_history(self.params,"history_vid.json")
 
     def __str__(self):
         return f"{self.X}x{self.Y} Video"
@@ -274,6 +287,10 @@ def init_params() -> dict:
     with open("lastparams.json", "w") as outfile:
         outfile.write(json_object)
     print(f"ok, opening {json_object}")
+
+
+    # ! Historique
+    params["timestamp"] = utilit.get_timestamp()
     return params
 
 
@@ -325,6 +342,8 @@ def go(params : dict) -> None:
     plt.show()
 
     p.export_npz()
+    print("Exported to npz")
+    p.add_to_history()
 
 
 def main() -> None:

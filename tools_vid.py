@@ -1,11 +1,9 @@
 import cv2
 import numpy as np
-from datetime import datetime
-import os
-import VideoData
 
 
-def get_MinMax_frameNb(videoData: VideoData.VideoData) -> tuple[int, int]:
+
+def get_MinMax_frameNb(videoData) -> tuple[int, int]:
     '''
     Convertit les timestamps en frames.
     '''
@@ -17,7 +15,7 @@ def get_MinMax_frameNb(videoData: VideoData.VideoData) -> tuple[int, int]:
     return min_frame, max_frame
 
 
-def get_res(videoData: VideoData.VideoData) -> tuple[int, int]:
+def get_res(videoData) -> tuple[int, int]:
     """
     Renvoie la résolution de l'image. Attention à la rotation.
     """
@@ -30,17 +28,18 @@ def get_res(videoData: VideoData.VideoData) -> tuple[int, int]:
     return res
 
 
-def generate_file_name(info: str, ext: str = "npz") -> str:
-    now = datetime.now()
-    date_str = now.strftime("%d-%m")
-    time_str = now.strftime("%H-%M-%S")
-    return f"{date_str}_{time_str}_{info}.{ext}"
+# def generate_file_name(info: str, ext: str = "npz") -> str:
+#     now = datetime.now()
+#     date_str = now.strftime("%d-%m")
+#     time_str = now.strftime("%H-%M-%S")
+#     return f"{date_str}_{time_str}_{info}.{ext}"
 
 
-def generate_file_name(videoData: VideoData.VideoData, ext: str = "npz"):
-    timestamp = os.path.getctime('test.mp4')
-    date_time = datetime.fromtimestamp(timestamp)
-    date_str = date_time.strftime('%d-%m')
+def generate_file_name(videoData, ext: str = "npz"):
+    # timestamp = os.path.getctime(videoData.vidpath)
+    # date_time = datetime.fromtimestamp(timestamp)
+    # date_str = date_time.strftime('%d-%m')
 
     # time_str = now.strftime("%H-%M-%S")
-    return f"{date_str}_h{str(videoData.height).replace(".", "-")}_m{videoData.mass}{videoData.info}.{ext}"
+    return f"{videoData.vidname}_{videoData.date}_h{str(videoData.height).replace(".", "-")}_m{videoData.mass}{videoData.info}.{ext}"
+

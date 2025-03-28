@@ -100,25 +100,13 @@ def frame_to_profile(image):
 
     Xbaseline = image.baselinea * image.rangeY + image.baselineb
     # # Si on veut tracer sur l'image, on ne veut que des valeurs entières
-    # Xbaseline_int = np.astype(Xbaseline, np.int16)
+    image.Xbaseline_int = np.astype(Xbaseline, np.int16)
 
     # ! PROFIL
     profile_between_y1_and_y2 = utilit.z(
         image.Xline[image.y1:image.y2], Xbaseline[image.y1:image.y2], image.theta)
-    # if np.max(profile_between_y1_and_y2) > np.abs(np.min(profile_between_y1_and_y2)):
-    #     image.profile[image.y1:image.y2] = -profile_between_y1_and_y2
-
-    # else:
-    #     image.profile[image.y1:image.y2] = profile_between_y1_and_y2  # copy ?
 
     image.profile[image.y1:image.y2] = profile_between_y1_and_y2  # copy ?
-
-    # newframe = np.copy(frame)
-    # # for i in range(np.shape(newframe)[0]):
-    # #     for j in range(np.shape(newframe)[1]):
-    # #         newframe[i, int(a * i + b), :] = [255, 255, 0]
-    # #         if y1b > i > y1 or y2a < i < y2:
-    # #             newframe[i, j, :] = [255, 255, 255]
 
     return
 

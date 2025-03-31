@@ -108,6 +108,10 @@ def frame_to_profile(image):
 
     image.profile[image.y1:image.y2] = profile_between_y1_and_y2  # copy ?
 
+    image.points_list = image.profile
+    image.new_S_list = image.Xline
+    image.new_Y_list = image.rangeY
+
     return
 
 

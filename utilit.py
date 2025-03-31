@@ -2,6 +2,7 @@ import numpy as np
 import json
 from datetime import datetime
 
+
 def z(x, xl, theta):
     return (x-xl) * np.tan(theta)
 
@@ -36,7 +37,6 @@ def zerohyperbolicv2(zc, b, c, x0, y0):
     return x1, x2, y1, y2
 
 
-
 def add_to_history(dic, json_path):
     with open(json_path, "r") as infile:
         try:
@@ -60,15 +60,26 @@ def get_timestamp():
     time_str = now.strftime("%H-%M-%S")
     return f"{date_str}_{time_str}"
 
+
 def get_day():
     now = datetime.now()
     date_str = now.strftime("%d%m")
     return date_str
 
+
 def get_time():
     now = datetime.now()
     time_str = now.strftime("%H%M%S")
     return time_str
+
+
+def R0(zc, b, c):
+    """
+    Rayon d'un hyperbole
+    """
+
+    return np.abs((zc**2-b**2)/c)
+
 
 if __name__ == "__main__":
     print(get_timestamp())

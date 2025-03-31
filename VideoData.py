@@ -73,14 +73,14 @@ class VideoData:
         self.baseline_pcov = []
 
         # * Position de la nappe
-        self.arrXMAX = []
-        self.arrYMAX = []
         self.arr_z_imid = []  # Profondeur de la nappe au milieu de l'image
         # y = alpha * x + beta
-        self.arrS = []  # Position de la nappe
 
         # * Profile
-        self.listOf_profiles = []  # List of 2D profiles (3D)
+        self.points = []
+        self.new_Y_arr=[]
+        self.new_S_arr=[]
+
         # X axis of the profile: set by the width of the video.
         self.rangeS = []
 
@@ -115,30 +115,42 @@ class VideoData:
             raise Exception("Error reading frame - max_frame too big?")
         if self.rotate:
             frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+        # ! filter red
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV) 
+
+        # Threshold of blue in HSV space 
+        lower_blue = np.array([60, 35, 140]) 
+        upper_blue = np.array([180, 255, 255]) 
+
+        # preparing the mask to overlay 
+        frame = cv2.inRange(hsv, lower_blue, upper_blue) 
         # Convert to RGB
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+        # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         return frame
 
     def appendData_frame(self, img: ImageData.ImageData) -> None:
         '''
         Process the frame
-        - Append the profile to listOf_profiles
+        - Append the new points
         - Append the baseline to baselineA and baselineB
         - Append the first/last frame to firstFrame/lastFrame
         - Append position of the nappe to arrXMAX and arrYMAX
         '''
-        # ! Append the profile to listOf_profiles
-        self.listOf_profiles.append(img.profile)
+        
         self.baselineA.append(img.baselinea)
         self.baselineB.append(img.baselineb)
         self.baseline_a_avg = np.mean(self.baselineA)
         self.baseline_pcov.append(img.baseline_pcov)
-        self.arrXMAX.append(img.XMAX)
-        self.arrYMAX.append(img.YMAX)
-        self.arr_z_imid.append(img.profile[self.imid])
-        # self.arrS.append(np.cos(np.arctan(self.baseline_a_avg))*img.XMAX)
-        nparrXMAX = np.array(self.arrXMAX)
-        self.arrS = np.cos(np.arctan(self.baseline_a_avg)) * nparrXMAX
+
+        self.points = np.concatenate((self.points, img.points_list))
+        self.new_Y_arr = np.concatenate((self.new_Y_arr, img.new_Y_list))
+        self.new_S_arr = np.concatenate((self.new_S_arr, img.new_S_list))
+
+        self.ymid = int(self.Y/2)
+        mask_ymid = (self.new_Y_arr == self.ymid)
+        self.arr_z_imid = self.points[mask_ymid]
+        self.arr_s_imid = self.new_S_arr[mask_ymid]
 
     def from_frame_to_Image(self, frame: np.ndarray) -> ImageData.ImageData:
         return ImageData.ImageData(frame, rangeX=self.rangeX, rangeY=self.rangeY,
@@ -156,20 +168,27 @@ class VideoData:
     def iterate_anim(self, i: int) -> tuple:
         image = self.iterate()
 
+
+        # ! image brute
         self.framed_showed.set_array(image.frame)
         image.draw()
+        # ! Image dessinée
         self.framed_drawed.set_array(image.frame)
 
-        self.profile_showed.set_data(self.rangeY, image.profile)
-        self.profile_fit_showed.set_data(self.rangeY[image.i1:image.i2], utilit.hyperbolic(
-            image.rangeY[image.i1:image.i2], *image.popt))
+        # self.profile_showed.set_data(self.rangeY, image.profile)
+        # self.profile_fit_showed.set_data(self.rangeY[image.i1:image.i2], utilit.hyperbolic(
+        #     image.rangeY[image.i1:image.i2], *image.popt))
 
+
+        # ! Profil perpendiculaire au milieu
         if np.max(self.arr_z_imid) > np.abs(np.min(self.arr_z_imid)):
-            self.perp_profile_showed.set_data(
-                self.arrS, -np.array(self.arr_z_imid))
+            coeff = -1
         else:
-            self.perp_profile_showed.set_data(self.arrS, self.arr_z_imid)
+            coeff = 1
+        
+        self.perp_profile_showed.set_data(self.arr_s_imid, coeff * self.arr_z_imid)
 
+        # ! infos
         self.infostext.set_text(f"Frame {self.frame_nb}/{self.max_frame} \n Theta: {self.theta_deg}° \n Filename: {self.vidpath} \n Height: {self.height} m \n Mass: {self.mass}")
 
         if self.frame_nb>=self.max_frame:
@@ -232,15 +251,15 @@ class VideoData:
         """
         self.process_before_export()
         self.npz_name = tools_vid.generate_file_name(self)
-        np.savez(f"./datanpz/{self.npz_name}", vidpath=self.vidpath, profiles=np.array(self.listOf_profiles),
-                 arrS=self.arrS, Y=self.Y, height=self.height, mass=self.mass, scale=self.scale, theta_deg=self.theta_deg, t1=self.t1, t2=self.t2, info=self.info, timestamp=self.timestamp, date=self.date)
+        np.savez(f"./datanpz/{self.npz_name}", vidpath=self.vidpath, points=self.points,
+                 arrS=self.new_S_arr, arrY=self.new_Y_arr, Y=self.Y, height=self.height, mass=self.mass, scale=self.scale, theta_deg=self.theta_deg, t1=self.t1, t2=self.t2, info=self.info, timestamp=self.timestamp, date=self.date)
 
     def process_before_export(self) -> None:
         """
         Retourne si mauvais signe
         """
-        if np.max(self.listOf_profiles) > np.abs(np.min(self.listOf_profiles)):
-            self.listOf_profiles = -np.array(self.listOf_profiles)
+        if np.max(self.points) > np.abs(np.min(self.points)):
+            self.points = -np.array(self.points)
         return
         self.baseline_a_avg = np.mean(self.baselineA)
         # self.baselineB = np.array(self.baselineB)
@@ -320,7 +339,7 @@ def ask_user_for_params(lastparams:dict) -> dict:
     t1 = float(input(f'T1 ? (max:{duration:.2f} s) ({lastparams["t1"]})') or lastparams["t1"])
     t2 = float(input(f'T2 ? (max:{duration:.2f} s) ({lastparams["t2"]})') or lastparams["t2"])
     rotate = input(f'ROTATE ? ({lastparams["rotate"]})') or lastparams["rotate"]
-    rotate = rotate == "y" or rotate == "True" or rotate == "true"
+    rotate = rotate == "y" or rotate == "True" or rotate == "true" or rotate==True
     info = input("INFO ? vide sinon")
 
     params = {"date":date, "vidname":vidname, "vidpath": vidpath, "rotate": rotate, "mass": mass,
@@ -364,3 +383,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -55,7 +55,11 @@ class ImageData:
         self.baselinea = 0
         self.baselineb = 0
         self.baseline_pcov = []
-        self.profile = []
+
+        self.points_list = [] # profondeur
+        self.new_X_list = [] # abscisse 1
+        self.new_S_list = [] # abscisse 2
+
         self.Xline = []  # Là où est détecté la nappe
 
         self.popt = []  # Parameters of the hyperbolic fit
@@ -100,7 +104,7 @@ class ImageData:
         '''
         self.set_up()
         self.get_profile()
-        self.get_fit()
+        # self.get_fit()
         self.process_data()
         return
 

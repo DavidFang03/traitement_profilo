@@ -1,12 +1,12 @@
 {
-    "date": "2803",
-    "vidname": "m2-riv_centre",
-    "vidpath": "./vids/2803/m2-riv_centre.mp4",
+    "date": "0403",
+    "vidname": "m12-riv",
+    "vidpath": "./vids/0403/m12-riv.mp4",
     "rotate": true,
-    "mass": 2,
+    "mass": 12,
     "height": 5.907,
     "theta_deg": 42.85,
     "t1": 0.0,
-    "t2": 22.0,
+    "t2": 14.35,
     "info": ""
 }

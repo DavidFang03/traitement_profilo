@@ -1,5 +1,6 @@
 import numpy as np
 import A_utilit as utilit
+import cv2
 
 
 def boundaries(gray_image):
@@ -59,37 +60,13 @@ def boundaries_Hyperbolic(profile, threshold):
     return i1, i2
 
 
-def frame_to_profile(image):
-    """
-    Convertit une image donnée en un profil en traitant l'image pour détecter et analyser la ligne de profil.
-    Remarques:
-    - La fonction convertit l'image d'entrée en niveaux de gris.
-    - Elle recadre l'image pour ignorer les régions noires et se concentrer sur la zone d'intérêt.
-    - Elle calcule la ligne de base en ajustant une ligne aux données du profil.
-    - La fonction renvoie l'image traitée ainsi que les données du profil et de la ligne de base.
-    """
-    image.Xline = XLINE(image, method="weight center")
-
-    image.Xbaseline = XBASELINE(image)
-
-    profile_between_y1_and_y2 = utilit.z(
-        image.Xline[image.y1:image.y2], image.Xbaseline[image.y1:image.y2], image.theta)
-
-    image.profile[image.y1:image.y2] = profile_between_y1_and_y2  # copy ?
-
-    image.points_list = image.profile
-    image.new_S_list = image.Xline
-    image.new_Y_list = image.rangeY
-
-    return
-
-
 def XLINE(image, method="weight center"):
     '''
     Detection de la nappe
     '''
     if method == "weight center":
         sum = np.sum(image.gray_frame, axis=1)
+        print(0 in sum)
         Xline = np.sum(image.rangeX * image.gray_frame, axis=1) / sum
     elif method == "max":
         Xline = np.argmax(image.gray_frame, axis=1)
@@ -111,3 +88,28 @@ def XBASELINE(image):
 
     Xbaseline = image.baselinea * image.rangeY + image.baselineb
     return Xbaseline
+
+
+def redfilter(frame):
+    '''
+    Takes an RGB image
+    '''
+    # ! filter red
+    hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+
+    # Définir les plages de couleurs pour le rouge
+    # Note : Le rouge peut être présent dans deux plages dans l'espace HSV
+    lower_red1 = np.array([0, 60, 50])
+    upper_red1 = np.array([10, 255, 255])
+
+    lower_red2 = np.array([170, 60, 50])
+    upper_red2 = np.array([180, 255, 255])
+
+    # Créer un masque pour chaque plage de rouge
+    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+
+    # Combiner les deux masques
+    mask = cv2.bitwise_or(mask1, mask2)
+    # Appliquer le masque à l'image originale pour extraire les pixels rouges
+    return cv2.bitwise_and(frame, frame, mask=mask)

@@ -1,7 +1,6 @@
 import numpy as np
 import json
 from datetime import datetime
-import cv2
 
 
 def z(x, xl, theta):
@@ -81,31 +80,6 @@ def R0(zc, b, c):
     """
 
     return np.abs((zc**2-b**2)/c)
-
-
-def redfilter(frame):
-    '''
-    Takes an RGB image
-    '''
-    # ! filter red
-    hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
-
-    # Définir les plages de couleurs pour le rouge
-    # Note : Le rouge peut être présent dans deux plages dans l'espace HSV
-    lower_red1 = np.array([0, 70, 50])
-    upper_red1 = np.array([10, 255, 255])
-
-    lower_red2 = np.array([170, 70, 50])
-    upper_red2 = np.array([180, 255, 255])
-
-    # Créer un masque pour chaque plage de rouge
-    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-
-    # Combiner les deux masques
-    mask = cv2.bitwise_or(mask1, mask2)
-    # Appliquer le masque à l'image originale pour extraire les pixels rouges
-    return cv2.bitwise_and(frame, frame, mask=mask)
 
 
 if __name__ == "__main__":

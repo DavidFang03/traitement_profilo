@@ -54,33 +54,38 @@ def compute_fitv2(popt):
     return S, X, ydata
 
 
-def fit_hyperbolic2D(img):
+def fit_hyperbolic2D(arrS, arrY, arrZ, xplan, zplan):
     '''
-    Fit hyperbolic 2D sur le profil
+    Fit hyperbolic 2D sur un plan
     '''
-    bottom = np.min(img.profile)
-    center = img.rangeY[np.argmin(img.profile)]
-    p0 = [bottom, 1, 1, center]
+    bottom = np.min(arrZ)
+    threshold = 0.1*bottom
+    xcenter = xplan[np.argmin(zplan)]
 
-    if np.max(img.profile) > np.abs(np.min(img.profile)):
-        img.popt = (0, 0, 0, 0)
-        return
+    maskthresh = zplan < threshold
+    xplan_masked = xplan[maskthresh]
+    zplan_masked = zplan[maskthresh]
+    if len(zplan[maskthresh]) > 20:
+        try:
+            popt, pcov = scipy.optimize.curve_fit(
+                utilit.hyperbolic, xplan_masked, zplan_masked, p0=(bottom, 1, 1, xcenter))
+            xfit = np.linspace(
+                np.min(xplan_masked), np.max(xplan_masked), 100)
+            zfit = utilit.hyperbolic(xfit, *popt)
+        except RuntimeError:
+            print("error")
+            popt = None
+            pcov = None
+            xfit = np.linspace(np.min(arrY), np.max(arrY), 100)
+            zfit = np.ones(100) * threshold
 
-    try:
-        img.popt, img.pcov = scipy.optimize.curve_fit(
-            # Ne pas oublier de préciser p0 sinon galère
-            utilit.hyperbolic, img.rangeY[img.i1:img.i2], img.profile[img.i1:img.i2], p0=p0)
-    except RuntimeError as e:
-        if "Optimal parameters not found" in str(e):
-            print(
-                f"Frame {img.frame_nb} - Echec fit : setting to (0,0,0,0). Check THETA ({img.theta}) or ROTATE")
-            img.popt = (img.hyperbolic_threshold*np.min(img.profile), 0, 0, 0)
-            np.savetxt("test.txt", np.column_stack(
-                (img.rangeY[img.i1:img.i2], img.profile[img.i1:img.i2])))
-        else:
-            raise  # Relève l'erreur si ce n'est pas celle attendue
+    else:
+        popt = None
+        pcov = None
+        xfit = np.linspace(np.min(arrY), np.max(arrY), 100)
+        zfit = np.ones(100) * threshold
 
-    return
+    return popt, pcov, xfit, zfit
 
 
 if __name__ == "__main__":

@@ -3,6 +3,31 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import A_utilit as utilit
+import D_ThreeD as ThreeD
+
+
+def frame_to_profile(image):
+    """
+    Convertit une image donnée en un profil en traitant l'image pour détecter et analyser la ligne de profil.
+    Remarques:
+    - La fonction convertit l'image d'entrée en niveaux de gris.
+    - Elle recadre l'image pour ignorer les régions noires et se concentrer sur la zone d'intérêt.
+    - Elle calcule la ligne de base en ajustant une ligne aux données du profil.
+    - La fonction renvoie l'image traitée ainsi que les données du profil et de la ligne de base.
+    """
+    image.Xline = tools_img.XLINE(image, method="weight center")
+    image.Xbaseline = tools_img.XBASELINE(image)
+
+    profile_between_y1_and_y2 = utilit.z(
+        image.Xline[image.y1:image.y2], image.Xbaseline[image.y1:image.y2], image.theta)
+
+    image.profile[image.y1:image.y2] = profile_between_y1_and_y2  # copy ?
+
+    image.points_list = image.profile
+    image.new_S_list = image.Xline
+    image.new_Y_list = image.rangeY
+
+    return
 
 
 class ImageData:
@@ -27,7 +52,7 @@ class ImageData:
         self.height = kwargs.get("height", None)
 
         self.frame_nb = kwargs.get("frame_nb", 0)
-        self.filterred = kwargs.get("frame_nb", False)
+        self.filterred = kwargs.get("filterred", False)
 
         self.original_frame = frame
         self.frame = frame  # frame with eventual red filter
@@ -59,10 +84,6 @@ class ImageData:
         self.baselineb = 0
         self.baseline_pcov = []
 
-        self.points_list = []  # profondeur
-        self.new_X_list = []  # abscisse 1
-        self.new_S_list = []  # abscisse 2
-
         self.Xline = []  # Là où est détecté la nappe
 
         self.popt = []  # Parameters of the hyperbolic fit
@@ -80,7 +101,7 @@ class ImageData:
         Ready for profile calculation (but not for fit yet)
         '''
         if self.filterred:
-            self.frame = utilit.redfilter(self.frame)
+            self.frame = tools_img.redfilter(self.frame)
         # * gray_frame
         self.gray_frame = cv2.cvtColor(self.frame, cv2.COLOR_RGB2GRAY)
 
@@ -94,7 +115,7 @@ class ImageData:
         return
 
     def get_profile(self) -> None:
-        tools_img.frame_to_profile(self)
+        frame_to_profile(self)
         return
 
     def run(self) -> None:
@@ -103,12 +124,7 @@ class ImageData:
         '''
         self.set_up()
         self.get_profile()
-        self.process_data()
         return
-
-    def process_data(self) -> None:
-        self.XMAX = np.max(self.Xline)
-        self.YMAX = self.rangeY[np.argmax(self.Xline)]
 
     def draw(self) -> None:
         '''
@@ -142,32 +158,34 @@ class ImageData:
         - Hyperbolic fit
         '''
 
-        self.fig, self.ax = plt.subplots(1, 2)
+        self.fig, self.ax = plt.subplots(1, 3)
 
-        self.ax[0].imshow(self.frame)
-        self.ax[0].set_title("Frame")
+        self.ax[0].imshow(self.original_frame)
+        self.ax[0].set_title("Original Frame")
         self.ax[0].axis('off')
         self.ax[0].set_aspect('equal')
 
-        self.plot_profile_on_ax(self.ax[1])
-        self.ax[1].set_title("Profil")
-        self.ax[1].set_xlabel("x")
-        self.ax[1].set_ylabel("z")
-        self.ax[1].legend()
-        # self.ax[1].set_aspect('equal')
+        self.ax[1].imshow(self.frame)
+        self.ax[1].set_title("Frame")
+        self.ax[1].axis('off')
+        self.ax[1].set_aspect('equal')
 
-    def plot_profile_on_ax(self, ax) -> None:
-        ax.plot(self.rangeY, self.profile, label="Profil")
-        ax.plot(self.rangeY[self.i1:self.i2], utilit.hyperbolic(
-            self.rangeY[self.i1:self.i2], *self.popt), label="Hyperbolic fit")
+        step = 12
+        self.ax[2].axis('off')
+        self.ax[2] = self.fig.add_subplot(1, 3, 3, projection='3d')
+        print(np.shape(self.new_Y_list), np.shape(
+            self.new_S_list), np.shape(self.points_list))
+        self.ax[2].scatter(
+            self.new_S_list[::step], self.new_Y_list[::step], self.points_list[::step], marker="o")
+        self.ax[2].set_xlabel('S')
+        self.ax[2].set_ylabel('Y')
+        self.ax[2].set_zlabel('Z')
+        self.ax[2].axis('equal')
 
-    def set_profile_on_lines(self, line, linefit) -> None:
-        '''
-        set the profile data on the given lines.
-        '''
-        line.set_ydata(self.profile)
-        linefit.set_ydata(utilit.hyperbolic(
-            self.rangeY[self.i1:self.i2], *self.popt))
+        self.ax[2].view_init(elev=0, azim=0)
+
+        self.fig.canvas.mpl_connect(
+            'key_press_event', ThreeD.return_update_func(self.fig, self.ax[2]))
 
 
 def get_frame_fromPath(img_path: str, rotate=False) -> np.ndarray:
@@ -188,8 +206,9 @@ if __name__ == "__main__":
     # print(type(cv2.imread("test.png", cv2.IMREAD_COLOR)))
     # Test the ImageData class
     # frame = get_frame_fromPath("data_test/test10_vert.png", rotate=False)
-    frame = get_frame_fromPath("data_test/test10_horiz.png", rotate=True)
-    img_data = ImageData(frame, hyperbolic_threshold=0.25)
+    # frame = get_frame_fromPath("data_test/test10_horiz.png", rotate=True)
+    frame = get_frame_fromPath("testfilter.png", rotate=True)
+    img_data = ImageData(frame, hyperbolic_threshold=0.25, filterred=True)
     img_data.run()
     img_data.draw()
     img_data.plot()

@@ -4,6 +4,8 @@ import Db_tools_ThreeD as tools_ThreeD
 import A_utilit as utilit
 from matplotlib import cm
 
+index_plan = 0
+
 
 def return_update_func(fig, ax):
     def update_view(event):
@@ -16,7 +18,41 @@ def return_update_func(fig, ax):
         elif event.key == '5':  # down
             ax.view_init(elev=ax.elev - 5, azim=ax.azim)
         fig.canvas.draw()
+        # print(ax.elev, ax.azim)
     return update_view
+
+
+def return_update_plan(fig, ax, arrS, sorted_unique_arrS, arrY, Z):
+    def update_plan(event):
+        global index_plan
+        if event == 'right' or event.key == 'right':
+            index_plan = (index_plan + 1) % len(sorted_unique_arrS)
+            print(event, event == 'right' or event.key ==
+                  'right', sorted_unique_arrS[index_plan], index_plan)
+        elif event == 'left' or event.key == 'left':
+            index_plan = (index_plan - 1) % len(sorted_unique_arrS)
+            print(event, event == 'left' or event.key ==
+                  'left', sorted_unique_arrS[index_plan], index_plan)
+
+        mask = (arrS == sorted_unique_arrS[index_plan])
+
+        popt, pcov, xfit, zfit = tools_ThreeD.fit_hyperbolic2D(
+            arrS, arrY, Z, arrY[mask], Z[mask])
+        ax.cla()
+        ax.plot(arrY[mask], Z[mask], 'o', color='blue')
+        ax.plot(xfit, zfit, color='red', alpha=0.5)
+        ax.set_title(
+            f"s={sorted_unique_arrS[index_plan]} → {sorted_unique_arrS[-1]} ({len(sorted_unique_arrS)})")
+        ax.set_xlabel('Y')
+        ax.set_ylabel('Z')
+        ax.set_xlim(np.min(arrY), np.max(arrY))
+        ax.set_ylim(np.min(Z), np.max(Z))
+        ax.set_aspect('equal')
+        fig.canvas.draw()
+
+        return popt, pcov
+
+    return update_plan
 
 
 class ThreeD_Data:
@@ -82,6 +118,9 @@ class ThreeD_Data:
         self.ax_both = self.fig_both.add_subplot(111, projection='3d')
 
         self.figplan, self.axplan = plt.subplots(num='Plan')
+
+        self.list_of_popts = []
+        self.list_of_u = []
 
         return
 
@@ -190,6 +229,41 @@ class ThreeD_Data:
     def update_history_npz(self):
         utilit.add_to_history(self.params_npz, "history_npz.json")
 
+    def plot_plan(self):
+        sorted_unique_arrS = np.sort(np.unique(self.arrS))
+        return_update_plan(self.figplan, self.axplan, self.arrS,
+                           sorted_unique_arrS, self.arrY, self.points)('right')
+        self.figplan.canvas.mpl_connect(
+            'key_press_event', return_update_plan(self.figplan, self.axplan, self.arrS, sorted_unique_arrS, self.arrY, self.points))
+
+    def auto_plan(self):
+        """
+        Automatically browses through the plans.
+        """
+        sorted_unique_arrS = np.sort(np.unique(self.arrS))
+        f_update_plan = return_update_plan(self.figplan, self.axplan, self.arrS,
+                                           sorted_unique_arrS, self.arrY, self.points)
+        for i in range(len(sorted_unique_arrS)):
+            popt, pcov = f_update_plan('right')
+            if popt is not None:
+
+                u = np.sqrt(np.diag(pcov))
+                if u[0] < abs(popt[0]):
+                    self.list_of_popts.append(popt)
+                    self.list_of_u.append(u)
+        self.fig_popt, self.ax_popt = plt.subplots(4, num='Fits des plans')
+        self.ax_popt[0].set_title('zc')
+        self.ax_popt[1].set_title('b')
+        self.ax_popt[2].set_title('c')
+        self.ax_popt[3].set_title('y0')
+
+        arrpopt = np.array(self.list_of_popts)
+        arru = np.array(self.list_of_u)
+        self.ax_popt[0].errorbar(range(len(self.list_of_popts)), arrpopt[:, 0], yerr=arru[:, 0],
+                                 fmt='o', label=f'zc')
+        self.ax_popt[0].axline((0, np.min(self.points)), (len(
+            self.list_of_popts), np.min(self.points)), color='red', linestyle='--')
+
 
 if __name__ == "__main__":
     # Example usage
@@ -199,6 +273,7 @@ if __name__ == "__main__":
     three_d_data.fit3D()
     three_d_data.plot_fit3D()
     three_d_data.plot_both()
+    three_d_data.auto_plan()
     three_d_data.end_plot()
     three_d_data.export_data()
     three_d_data.update_history_npz()

@@ -22,6 +22,8 @@ vmin = -60*scales["2803"]
 print(vmin)
 norm = matplotlib.colors.Normalize(vmin=vmin, vmax=5)
 
+DATAPATH = "./DATA2.json"
+
 
 def return_update_func(fig, ax):
     def update_view(event):
@@ -229,6 +231,7 @@ class ThreeD_Data:
         for trifig, triax, trisurf in zip(all_trifigs, all_triaxes, all_trisurfs):
             trifig.set_edgecolor('none')
             trisurf.set_edgecolor('none')
+            triax.set_title(f"{self.vidpath}, {self.height}")
             triax.axis('equal')
             triax.set_xlabel("$x$ (mm)")
             triax.set_ylabel('$y$ (mm)')
@@ -284,8 +287,6 @@ class ThreeD_Data:
         # self.fig_both.canvas.mpl_connect(
         #     'key_press_event', return_update_func(self.fig_both, self.ax_both))
 
-        plt.show()
-
     def from_everything_to_formatted_data(self):
         '''
         On a besoin de :
@@ -319,7 +320,7 @@ class ThreeD_Data:
 
         big_data = self.from_everything_to_formatted_data()
         print(big_data)
-        utilit.add_to_history(big_data, "./DATA.json")
+        utilit.add_to_history(big_data, DATAPATH)
 
         self.params_npz["popt"] = list(self.popt)
         self.params_npz["uncertainties"] = list(self.uncertainties)
@@ -364,8 +365,8 @@ class ThreeD_Data:
         self.ax_popt[0].legend()
 
 
-def RUN_TRID(path):
-    three_d_data = ThreeD_Data(npz_path)
+def RUN_TRID(path, name):
+    three_d_data = ThreeD_Data(path)
     three_d_data.plot_profile3D()
     three_d_data.fit3D()
     three_d_data.plot_fit3D()
@@ -373,6 +374,8 @@ def RUN_TRID(path):
     # three_d_data.plot_plan()
     # three_d_data.auto_plan()
     three_d_data.end_plot()
+    three_d_data.fig_both.savefig(f"final_3d_imgs/{name}.png")
+    plt.close("all")
     three_d_data.export_data()
     three_d_data.update_history_npz()
 
@@ -390,3 +393,4 @@ if __name__ == "__main__":
     three_d_data.end_plot()
     three_d_data.export_data()
     three_d_data.update_history_npz()
+    plt.show()

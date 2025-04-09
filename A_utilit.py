@@ -27,6 +27,11 @@ def zerohyperbolic(zc, b, c, x0, y0):
     return x1, x2, y1, y2
 
 
+def diameter_hyperbola(zc, b, c):
+    r = np.sqrt((zc**2-b**2)/np.abs(c))
+    return 2*r
+
+
 def add_to_history(dic, json_path):
     with open(json_path, "r") as infile:
         try:

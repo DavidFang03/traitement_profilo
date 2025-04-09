@@ -1,0 +1,14 @@
+[
+  {
+    "date": "0404",
+    "vidname": "m12-riv",
+    "vidpath": "./vids/0404/m12-riv.mp4",
+    "rotate": true,
+    "mass": 12,
+    "height": 5.907,
+    "theta_deg": 42.85,
+    "t1": 0.0,
+    "t2": 0,
+    "info": ""
+  }
+]

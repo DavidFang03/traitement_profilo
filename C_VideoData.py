@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import A_utilit as utilit
 import os
 import json
+import progress.bar
 
 
 class VideoData:
@@ -64,6 +65,10 @@ class VideoData:
         self.rangeY = np.arange(self.Y)
         # Middle index of the crater -> Profil perpendiculaire
         self.imid = int(self.Y / 2)
+
+        self.nb_frames_anim = self.max_frame - self.min_frame - 1
+        self.bar = progress.bar.Bar(
+            f'Processing {self.vidpath}', max=self.nb_frames_anim)
 
         # ? Boundaries are specific to the frame
 
@@ -153,7 +158,7 @@ class VideoData:
 
     def from_frame_to_Image(self, frame: np.ndarray) -> ImageData.ImageData:
         return ImageData.ImageData(frame, rangeX=self.rangeX, rangeY=self.rangeY,
-                                   res=self.res, theta=self.theta, mass=self.mass, height=self.height, frame_nb=self.frame_nb, filterred=self.filterred)
+                                   res=self.res, theta=self.theta, mass=self.mass, height=self.height, frame_nb=self.frame_nb, filterred=self.filterred, vidpath=self.vidpath)
 
     def iterate(self) -> ImageData.ImageData:
         frame = self.next_frame()
@@ -162,6 +167,8 @@ class VideoData:
 
         image.run()
         self.appendData_frame(image)
+
+        self.bar.next()
         return image
 
     def iterate_anim(self, i: int) -> tuple:
@@ -171,7 +178,7 @@ class VideoData:
         self.framed_showed.set_array(image.original_frame)
         image.draw()
         # ! Image avec tracés (après éventuels red filter)
-        self.framed_drawed.set_array(image.frame)
+        self.framed_drawed.set_array(image.draw_frame)
 
         # self.profile_showed.set_data(self.rangeY, image.profile)
         # self.profile_fit_showed.set_data(self.rangeY[image.i1:image.i2], utilit.hyperbolic(
@@ -232,16 +239,21 @@ class VideoData:
     def animate(self) -> None:
         # init
         self.init_anim()
-
-        self.nb_frames_anim = self.max_frame - self.min_frame - 1
         # self.iterate_anim(0) # est en fait automatiquement appelé par FuncAnimation lorsque aucune init_func n'est donnée
         # self.funcanim = animation.FuncAnimation(
         #     self.anifig, self.iterate_anim, init_func=self.dumb_init, frames=self.nb_frames_anim, interval=1000 / self.fps, blit=True, repeat=False)
-        self.funcanim = animation.FuncAnimation(
-            self.anifig, self.iterate_anim, init_func=self.dumb_init, frames=self.nb_frames_anim, blit=True, repeat=False, interval=1)
-        self.anifig.tight_layout()
-        self.funcanim.save(f"funcanim/funcanim_{self.date}_{self.vidname}.mp4", fps=self.fps,
-                           extra_args=['-vcodec', 'libx264'])
+
+        if self.savemode:
+            self.funcanim = animation.FuncAnimation(
+                self.anifig, self.iterate_anim, init_func=self.dumb_init, frames=self.nb_frames_anim, blit=True, repeat=False, interval=1)
+            self.anifig.tight_layout()
+            self.funcanim.save(
+                f"funcanim/funcanim_{self.date}_{self.vidname}.mp4", fps=self.fps, extra_args=['-vcodec', 'libx264'])
+        else:
+            self.funcanim = animation.FuncAnimation(
+                self.anifig, self.iterate_anim, init_func=self.dumb_init, frames=self.nb_frames_anim, interval=1000 / self.fps, blit=True, repeat=False)
+            self.anifig.tight_layout()
+            plt.show()
 
     def export_npz(self) -> None:
         """
@@ -352,6 +364,7 @@ def ask_user_for_params(lastparams: dict) -> dict:
 def go(params: dict) -> None:
     # ! Historique
     params["timestamp"] = utilit.get_timestamp()
+    params["savemode"] = False
     p = VideoData(params)
 
     p.set_up()
@@ -371,6 +384,7 @@ def go(params: dict) -> None:
 def RUN_VIDEODATA(params: dict) -> None:
     # ! Historique
     params["timestamp"] = utilit.get_timestamp()
+    params["savemode"] = True
     p = VideoData(params)
 
     p.set_up()
@@ -384,7 +398,19 @@ def RUN_VIDEODATA(params: dict) -> None:
 
 
 def main() -> None:
-    params = init_params()
+    # params = init_params()
+    params = {
+        "date": "2803",
+        "vidname": "m10",
+        "vidpath": "./vids/2803/m10.mp4",
+        "rotate": False,
+        "mass": 10,
+        "height": 2.008,
+        "theta_deg": 42.75,
+        "t1": 0.0,
+        "t2": 0,
+        "info": ""
+    }
     go(params)
 
     again = True

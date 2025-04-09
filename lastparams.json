@@ -1,12 +1,12 @@
 {
-    "date": "0403",
-    "vidname": "m12-riv",
-    "vidpath": "./vids/0403/m12-riv.mp4",
+    "date": "2803",
+    "vidname": "m8",
+    "vidpath": "./vids/2803/m8.mp4",
     "rotate": true,
-    "mass": 12,
-    "height": 5.907,
-    "theta_deg": 42.85,
+    "mass": 8,
+    "height": 2.008,
+    "theta_deg": 42.75,
     "t1": 0.0,
-    "t2": 14.35,
+    "t2": 0.0,
     "info": ""
 }

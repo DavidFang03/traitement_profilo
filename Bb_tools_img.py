@@ -2,6 +2,8 @@ import numpy as np
 import A_utilit as utilit
 import cv2
 
+threshold_bin = 0.5  # seuil pour le binarisation de l'image
+
 
 def boundaries(gray_image):
     """
@@ -64,12 +66,20 @@ def XLINE(image, method="weight center"):
     '''
     Detection de la nappe
     '''
+
+    if not image.filterred:
+        method = "max"
+
     if method == "weight center":
-        sum = np.sum(image.gray_frame, axis=1)
-        # print(0 in sum)
-        Xline = np.sum(image.rangeX * image.gray_frame, axis=1) / sum
+        bin_mask = image.gray_frame > threshold_bin * np.max(image.gray_frame)
+        image.filtered_frame = image.gray_frame * bin_mask
+        sum = np.sum(image.filtered_frame, axis=1)
+        if 0 in sum:
+            raise Exception(image.vidpath, "0 dans la somme")
+        Xline = np.sum(image.rangeX * image.filtered_frame, axis=1) / sum
     elif method == "max":
-        Xline = np.argmax(image.gray_frame, axis=1)
+        image.filtered_frame = image.gray_frame
+        Xline = np.argmax(image.filtered_frame, axis=1)
     return Xline
 
 
@@ -102,7 +112,7 @@ def redfilter(frame):
     lower_red1 = np.array([0, 50, 50])
     upper_red1 = np.array([10, 255, 255])
 
-    lower_red2 = np.array([170, 50, 50])
+    lower_red2 = np.array([165, 45, 50])
     upper_red2 = np.array([180, 255, 255])
 
     # Créer un masque pour chaque plage de rouge

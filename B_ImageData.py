@@ -47,6 +47,7 @@ class ImageData:
             - hyperbolic_threshold
             - filterred
         '''
+        self.vidpath = kwargs.get("vidpath", None)
         self.theta = kwargs.get("theta", np.radians(30))
         self.mass = kwargs.get("mass", None)
         self.height = kwargs.get("height", None)
@@ -136,18 +137,20 @@ class ImageData:
         # Si on veut tracer sur l'image, on ne veut que des valeurs entières
         Xbaseline_int = np.astype(self.Xbaseline, np.int16)
         Xline_int = np.astype(self.Xline, np.int16)
+        self.draw_frame = cv2.cvtColor(self.filtered_frame, cv2.COLOR_GRAY2RGB)
         # ! draw argmax
-        self.frame[self.rangeY, Xline_int, :] = [0, 255, 0]
+        self.draw_frame[self.rangeY, Xline_int, :] = [0, 255, 0]
         # ! draw baseline
         try:
-            self.frame[self.rangeY, Xbaseline_int, :] = [0, 0, 255]
+            self.draw_frame[self.rangeY, Xbaseline_int, :] = [0, 0, 255]
         except IndexError:
-            print("Error: Index out of bounds while drawing baseline. Rotate ?")
+            print(self.vidpath,
+                  "Error: Index out of bounds while drawing baseline. Rotate ?")
         # ! draw areas where baseline fit is done
-        self.frame[self.y1, :, :] = [195, 100, 25]
-        self.frame[self.ya, :, :] = [195, 100, 25]
-        self.frame[self.yb, :, :] = [195, 100, 25]
-        self.frame[self.y2-1, :, :] = [195, 100, 25]
+        self.draw_frame[self.y1, :, :] = [195, 100, 25]
+        self.draw_frame[self.ya, :, :] = [195, 100, 25]
+        self.draw_frame[self.yb, :, :] = [195, 100, 25]
+        self.draw_frame[self.y2-1, :, :] = [195, 100, 25]
 
     def plot(self) -> None:
         '''

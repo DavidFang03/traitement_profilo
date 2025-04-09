@@ -235,11 +235,13 @@ class VideoData:
 
         self.nb_frames_anim = self.max_frame - self.min_frame - 1
         # self.iterate_anim(0) # est en fait automatiquement appelé par FuncAnimation lorsque aucune init_func n'est donnée
+        # self.funcanim = animation.FuncAnimation(
+        #     self.anifig, self.iterate_anim, init_func=self.dumb_init, frames=self.nb_frames_anim, interval=1000 / self.fps, blit=True, repeat=False)
         self.funcanim = animation.FuncAnimation(
-            self.anifig, self.iterate_anim, init_func=self.dumb_init, frames=self.nb_frames_anim, interval=1000 / self.fps, blit=True, repeat=False)
+            self.anifig, self.iterate_anim, init_func=self.dumb_init, frames=self.nb_frames_anim, blit=True, repeat=False, interval=1)
         self.anifig.tight_layout()
-        # self.animate.save("lastanimation.mp4", fps=self.fps,
-        #                   extra_args=['-vcodec', 'libx264'])
+        self.funcanim.save(f"funcanim/funcanim_{self.date}_{self.vidname}.mp4", fps=self.fps,
+                           extra_args=['-vcodec', 'libx264'])
 
     def export_npz(self) -> None:
         """
@@ -248,8 +250,10 @@ class VideoData:
         """
         self.process_before_export()
         self.npz_name = tools_vid.generate_file_name(self)
-        np.savez(f"./datanpz/{self.npz_name}", vidpath=self.vidpath, points=self.points,
+        npz_path = f"./final_datanpz/{self.npz_name}"
+        np.savez(npz_path, vidpath=self.vidpath, points=self.points,
                  arrS=self.new_S_arr, arrY=self.new_Y_arr, Y=self.Y, height=self.height, mass=self.mass, scale=self.scale, theta_deg=self.theta_deg, t1=self.t1, t2=self.t2, info=self.info, timestamp=self.timestamp, date=self.date)
+        return npz_path
 
     def process_before_export(self) -> None:
         """
@@ -302,8 +306,6 @@ def init_params() -> dict:
         outfile.write(json_object)
     print(f"ok, opening {json_object}")
 
-    # ! Historique
-    params["timestamp"] = utilit.get_timestamp()
     return params
 
 
@@ -348,6 +350,8 @@ def ask_user_for_params(lastparams: dict) -> dict:
 
 
 def go(params: dict) -> None:
+    # ! Historique
+    params["timestamp"] = utilit.get_timestamp()
     p = VideoData(params)
 
     p.set_up()
@@ -358,6 +362,21 @@ def go(params: dict) -> None:
     manager = plt.get_current_fig_manager()
     manager.full_screen_toggle()
     plt.show()
+
+    p.export_npz()
+    print("Exported to npz")
+    p.add_to_history()
+
+
+def RUN_VIDEODATA(params: dict) -> None:
+    # ! Historique
+    params["timestamp"] = utilit.get_timestamp()
+    p = VideoData(params)
+
+    p.set_up()
+    p.animate()
+
+    print(p)
 
     p.export_npz()
     print("Exported to npz")

@@ -66,7 +66,7 @@ def XLINE(image, method="weight center"):
     '''
     if method == "weight center":
         sum = np.sum(image.gray_frame, axis=1)
-        print(0 in sum)
+        # print(0 in sum)
         Xline = np.sum(image.rangeX * image.gray_frame, axis=1) / sum
     elif method == "max":
         Xline = np.argmax(image.gray_frame, axis=1)
@@ -99,10 +99,10 @@ def redfilter(frame):
 
     # Définir les plages de couleurs pour le rouge
     # Note : Le rouge peut être présent dans deux plages dans l'espace HSV
-    lower_red1 = np.array([0, 60, 50])
+    lower_red1 = np.array([0, 50, 50])
     upper_red1 = np.array([10, 255, 255])
 
-    lower_red2 = np.array([170, 60, 50])
+    lower_red2 = np.array([170, 50, 50])
     upper_red2 = np.array([180, 255, 255])
 
     # Créer un masque pour chaque plage de rouge

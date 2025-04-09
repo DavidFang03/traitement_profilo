@@ -2,15 +2,14 @@ import cv2
 import numpy as np
 
 
-
 def get_MinMax_frameNb(videoData) -> tuple[int, int]:
     '''
     Convertit les timestamps en frames.
     '''
-    if videoData.t2 is not None:
+    if videoData.t2 is not None and videoData.t2 > 0:
         max_frame = int(videoData.t2 * videoData.fps)
     else:
-        max_frame = np.inf
+        max_frame = int(videoData.cap.get(cv2.CAP_PROP_FRAME_COUNT))
     min_frame = int(videoData.t1 * videoData.fps)
     return min_frame, max_frame
 
@@ -42,4 +41,3 @@ def generate_file_name(videoData, ext: str = "npz"):
 
     # time_str = now.strftime("%H-%M-%S")
     return f"{videoData.vidname}_{videoData.date}_h{str(videoData.height).replace(".", "-")}_m{videoData.mass}{videoData.info}.{ext}"
-

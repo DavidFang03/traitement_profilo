@@ -173,8 +173,8 @@ class ImageData:
         step = 12
         self.ax[2].axis('off')
         self.ax[2] = self.fig.add_subplot(1, 3, 3, projection='3d')
-        print(np.shape(self.new_Y_list), np.shape(
-            self.new_S_list), np.shape(self.points_list))
+        # print(np.shape(self.new_Y_list), np.shape(
+        #     self.new_S_list), np.shape(self.points_list))
         self.ax[2].scatter(
             self.new_S_list[::step], self.new_Y_list[::step], self.points_list[::step], marker="o")
         self.ax[2].set_xlabel('S')

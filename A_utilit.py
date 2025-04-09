@@ -17,17 +17,7 @@ def hyperbolic3D(x, y, zc, b, c, x0, y0):
 
 def zerohyperbolic(zc, b, c, x0, y0):
     '''
-    '''
-    r = np.sqrt((zc**2-b**2)/np.abs(c))
-    x1 = x0 - r
-    x2 = x0 + r
-    y1 = y0 - r
-    y2 = y0 + r
-    return x1, x2, y1, y2
-
-
-def zerohyperbolicv2(zc, b, c, x0, y0):
-    '''
+    After doing the fit, we want to find the zeros of the hyperbola so we can draw it only below 0.
     '''
     r = np.sqrt((zc**2-b**2)/np.abs(c))
     x1 = x0 - 2*r

@@ -14,8 +14,7 @@ def filter0(X1, X2, Y):
     '''
     Filtre les points où la valeur de Y est inférieure à 10% de la valeur minimale de Y
     '''
-    mask = (Y < 0.1 * np.min(Y)
-            )
+    mask = (Y < 0.1 * np.min(Y))
     x1 = X1[mask]
     x2 = X2[mask]
 
@@ -44,7 +43,7 @@ def fit3D(x1, x2, Y):
 
 def compute_fitv2(popt):
     size = 100
-    x1, x2, y1, y2 = utilit.zerohyperbolicv2(*popt)
+    x1, x2, y1, y2 = utilit.zerohyperbolic(*popt)
 
     # S = np.linspace(x1, x2, size)
     # X = np.linspace(y1, y2, size)
@@ -52,6 +51,16 @@ def compute_fitv2(popt):
     ydata = utilit.hyperbolic3D(S, X, *popt)
     print(np.shape(ydata))
     return S, X, ydata
+
+
+def compute_fitv3(S, X, popt):
+    Z = []
+    for s in S:
+        for x in X:
+            ydata = utilit.hyperbolic3D(s, x, *popt)
+            Z.append(ydata)
+
+    return Z
 
 
 def fit_hyperbolic2D(arrS, arrY, arrZ, xplan, zplan):
@@ -72,20 +81,21 @@ def fit_hyperbolic2D(arrS, arrY, arrZ, xplan, zplan):
             xfit = np.linspace(
                 np.min(xplan_masked), np.max(xplan_masked), 100)
             zfit = utilit.hyperbolic(xfit, *popt)
+            u_popt = np.sqrt(np.diag(pcov))
         except RuntimeError:
             print("error")
             popt = None
-            pcov = None
+            u_popt = None
             xfit = np.linspace(np.min(arrY), np.max(arrY), 100)
             zfit = np.ones(100) * threshold
 
     else:
         popt = None
-        pcov = None
+        u_popt = None
         xfit = np.linspace(np.min(arrY), np.max(arrY), 100)
         zfit = np.ones(100) * threshold
 
-    return popt, pcov, xfit, zfit
+    return popt, u_popt, xfit, zfit
 
 
 if __name__ == "__main__":

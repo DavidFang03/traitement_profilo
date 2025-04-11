@@ -1196,5 +1196,50 @@
         "timestamp": "0904_19-11-10",
         "savemode": true,
         "npz_name": "m12-riv_0404_h5-907_m12.npz"
+    },
+    {
+        "date": "2803",
+        "vidname": "m10",
+        "vidpath": "./vids/2803/m10.mp4",
+        "rotate": false,
+        "mass": 10,
+        "height": 2.008,
+        "theta_deg": 42.75,
+        "t1": 0.0,
+        "t2": 0,
+        "info": "",
+        "timestamp": "1004_01-08-31",
+        "savemode": false,
+        "npz_name": "m10_2803_h2-008_m10.npz"
+    },
+    {
+        "date": "2803",
+        "vidname": "m2",
+        "vidpath": "./vids/2803/m2.mp4",
+        "rotate": true,
+        "mass": 2,
+        "height": 2.008,
+        "theta_deg": 42.75,
+        "t1": 0.0,
+        "t2": 0,
+        "info": "",
+        "timestamp": "1104_01-04-53",
+        "savemode": true,
+        "npz_name": "m2_2803_h2-008_m2.npz"
+    },
+    {
+        "date": "0404",
+        "vidname": "m12-riv",
+        "vidpath": "./vids/0404/m12-riv.mp4",
+        "rotate": true,
+        "mass": 12,
+        "height": 5.907,
+        "theta_deg": 42.85,
+        "t1": 0.0,
+        "t2": 0,
+        "info": "",
+        "timestamp": "1104_01-20-29",
+        "savemode": true,
+        "npz_name": "m12-riv_0404_h5-907_m12.npz"
     }
 ]

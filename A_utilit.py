@@ -15,11 +15,15 @@ def hyperbolic3D(x, y, zc, b, c, x0, y0):
     return zc + np.sqrt(b**2 + c**2 * (((x - x0) ** 2)+((y-y0)**2)))
 
 
+def parabolic3D(x, y, zc, b, c, x0, y0):
+    return zc + b * np.sqrt((x-x0)**2 + (y-y0)**2) + c*((x-x0)**2+(y-y0)**2)
+
+
 def zerohyperbolic(zc, b, c, x0, y0):
     '''
     After doing the fit, we want to find the zeros of the hyperbola so we can draw it only below 0.
     '''
-    r = np.sqrt((zc**2-b**2)/np.abs(c))
+    r = np.sqrt((zc**2-b**2))/np.abs(c)
     x1 = x0 - 2*r
     x2 = x0 + 2*r
     y1 = y0 - 2*r
@@ -28,7 +32,7 @@ def zerohyperbolic(zc, b, c, x0, y0):
 
 
 def diameter_hyperbola(zc, b, c):
-    r = np.sqrt((zc**2-b**2)/np.abs(c))
+    r = np.sqrt((zc**2-b**2))/np.abs(c)
     return 2*r
 
 
@@ -67,14 +71,6 @@ def get_time():
     now = datetime.now()
     time_str = now.strftime("%H%M%S")
     return time_str
-
-
-def R0(zc, b, c):
-    """
-    Rayon d'un hyperbole
-    """
-
-    return np.abs((zc**2-b**2)/c)
 
 
 if __name__ == "__main__":

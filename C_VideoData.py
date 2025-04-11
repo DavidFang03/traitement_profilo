@@ -1,3 +1,4 @@
+import matplotlib as mpl
 import numpy as np
 import cv2
 import Cb_tools_vid as tools_vid
@@ -8,6 +9,17 @@ import A_utilit as utilit
 import os
 import json
 import progress.bar
+
+masses = np.array([0, 0, 89.46, 0, 63.7, 0, 49.59,
+                   0, 32.63, 0, 23.81, 0, 16.69, 0, 14.8])
+scales = {"2803": 0.33472530155340835, "0404": 0.3669702470186575}
+
+# plt.rcParams['text.usetex'] = True
+plt.rcParams['font.size'] = 20  # Par exemple,
+mpl.rcParams.update({
+    "text.usetex": True,
+    "text.latex.preamble": r"\usepackage{xcolor}"
+})
 
 
 class VideoData:
@@ -35,8 +47,8 @@ class VideoData:
             "t2": None,
             "mass": None,
             "height": None,
-            "scale": None,
             "info": "",
+            "scale": 1,
         }
 
         for key, value in mandatory.items():
@@ -84,8 +96,8 @@ class VideoData:
 
         # * Profile
         self.points = []
-        self.new_Y_arr = []
-        self.new_S_arr = []
+        self.Y_arr = []
+        self.X_arr = []
 
         # X axis of the profile: set by the width of the video.
         self.rangeS = []
@@ -112,6 +124,8 @@ class VideoData:
         if np.average(firstFrame_gray) > 110:
             self.filterred = True
 
+        self.ymid = int(self.Y/2)
+
     def next_frame(self) -> np.ndarray:
         """
         Get the next frame of the video.
@@ -124,7 +138,8 @@ class VideoData:
         self.frame_nb += 1
         ret, frame = self.cap.read()
         if not ret:
-            raise Exception("Error reading frame - max_frame too big?")
+            raise Exception(
+                f"Error reading frame {self.frame_nb}/{self.max_frame} - max_frame too big?")
 
         # ! rotate
         if self.rotate:
@@ -148,13 +163,12 @@ class VideoData:
         self.baseline_pcov.append(img.baseline_pcov)
 
         self.points = np.concatenate((self.points, img.points_list))
-        self.new_Y_arr = np.concatenate((self.new_Y_arr, img.new_Y_list))
-        self.new_S_arr = np.concatenate((self.new_S_arr, img.new_S_list))
+        self.Y_arr = np.concatenate((self.Y_arr, img.Y_list))
+        self.X_arr = np.concatenate((self.X_arr, img.X_list))
 
-        self.ymid = int(self.Y/2)
-        mask_ymid = (self.new_Y_arr == self.ymid)
+        mask_ymid = (self.Y_arr == self.ymid)
         self.arr_z_imid = self.points[mask_ymid]
-        self.arr_s_imid = self.new_S_arr[mask_ymid]
+        self.arr_x_imid = self.X_arr[mask_ymid]
 
     def from_frame_to_Image(self, frame: np.ndarray) -> ImageData.ImageData:
         return ImageData.ImageData(frame, rangeX=self.rangeX, rangeY=self.rangeY,
@@ -168,7 +182,6 @@ class VideoData:
         image.run()
         self.appendData_frame(image)
 
-        self.bar.next()
         return image
 
     def iterate_anim(self, i: int) -> tuple:
@@ -180,10 +193,6 @@ class VideoData:
         # ! Image avec tracés (après éventuels red filter)
         self.framed_drawed.set_array(image.draw_frame)
 
-        # self.profile_showed.set_data(self.rangeY, image.profile)
-        # self.profile_fit_showed.set_data(self.rangeY[image.i1:image.i2], utilit.hyperbolic(
-        #     image.rangeY[image.i1:image.i2], *image.popt))
-
         # ! Profil perpendiculaire au milieu
         if np.max(self.arr_z_imid) > np.abs(np.min(self.arr_z_imid)):
             coeff = -1
@@ -191,16 +200,16 @@ class VideoData:
             coeff = 1
 
         self.perp_profile_showed.set_data(
-            self.arr_s_imid, coeff * self.arr_z_imid)
+            self.arr_x_imid*self.scale, coeff * self.arr_z_imid*self.scale)
 
         # ! infos
         self.infostext.set_text(
-            f"Frame {self.frame_nb}/{self.max_frame} \n Theta: {self.theta_deg}° \n Filename: {self.vidpath} \n Height: {self.height} m \n Mass: {self.mass}")
+            f"Frame {self.frame_nb}/{self.max_frame} \n $\\theta = {self.theta_deg}$° \n $H = {self.height}$ m \n $m={masses[self.mass]}$ g")
 
         if self.frame_nb >= self.max_frame:
             print("Funcanimation probably finished")
 
-        return self.framed_showed, self.framed_drawed, self.profile_showed, self.profile_fit_showed, self.perp_profile_showed, self.infostext
+        return self.animated_lines
 
     def init_anim(self) -> None:
         """
@@ -208,54 +217,128 @@ class VideoData:
         - self.framed_showed : image originale
         - self.framed_drawed : image avec tracés
         - self.profile_showed : profil
-        - self.profile_fit_showed : fit hyperbolique du profil
         - self.perp_profile_showed : profil perpendiculaire
-        - self.infostext : infos : frame number, theta, filename, height, mass     
+        - self.infostext : infos : frame number, theta, filename, height, mass
 
         """
-        self.anifig, self.aniaxes = plt.subplots(2, 3)
+        self.anifig, self.aniaxes = plt.subplots(2, 3, figsize=(18, 9))
         self.framed_showed = self.aniaxes[0, 0].imshow(
-            self.firstFrame, animated=True)
+            self.firstFrame, animated=True, origin='lower')
         self.framed_drawed = self.aniaxes[0, 1].imshow(
-            self.firstFrame, animated=True)
+            self.firstFrame, animated=True, origin='lower')
 
-        self.profile_showed, = self.aniaxes[0, 2].plot(
-            self.rangeY, 10+np.zeros(self.Y), label="Profil")
-        self.profile_fit_showed, = self.aniaxes[0, 2].plot(self.rangeY, -100+np.zeros(self.Y),
-                                                           label="Hyperbolic fit")
+        dx_1mm = 10/self.scale
+        self.linescale2 = self.aniaxes[0, 0].axhline(
+            10, 0.1, 0.1+1/dx_1mm, color="white")
 
-        self.perp_profile_showed, = self.aniaxes[1, 2].plot(
-            self.rangeX, np.zeros(self.X), label="Profil perpendiculaire")
+        self.textscale2 = self.aniaxes[0, 0].annotate("\\small 1 cm", xy=(0.1+0.5/dx_1mm, 0.1), xycoords="axes fraction",
+                                                      ha="center", va="top", fontsize=20, color="white")
+
+        self.linescale = self.aniaxes[0, 1].axhline(
+            10, 0.1, 0.1+1/dx_1mm, color="white")
+
+        self.textscale = self.aniaxes[0, 1].annotate("\\small 1 cm", xy=(0.1+0.5/dx_1mm, 0.1), xycoords="axes fraction",
+                                                     ha="center", va="top", fontsize=20, color="white")
+
+        self.perp_profile_showed, = self.aniaxes[0, 2].plot(
+            self.rangeX, np.zeros(self.X), "o", label="Profil perpendiculaire", markersize=3)
+
+        self.aniaxes[0, 1].annotate(
+            "$y_0$",
+            xy=(0, self.ymid),
+            xycoords='data',
+            # Ajustez cette valeur pour déplacer le texte vers la gauche
+            xytext=(-20, 0),
+            textcoords='offset points',
+            ha='right',
+            va='center',
+            fontsize=14,
+            color='magenta',
+            arrowprops=dict(arrowstyle="->", color='magenta')
+        )
+        self.aniaxes[0, 1].annotate(
+            "$y_0$",
+            xy=(self.X, self.ymid),
+            xycoords='data',
+            # Ajustez cette valeur pour déplacer le texte vers la gauche
+            xytext=(20, 0),
+            textcoords='offset points',
+            ha='left',
+            va='center',
+            fontsize=14,
+            color='magenta',
+            arrowprops=dict(arrowstyle="->", color='magenta')
+        )
 
         self.infostext = self.aniaxes[1, 1].text(0.5, 0.5, "Frame 0", bbox={'facecolor': 'w', 'alpha': 0.5, 'pad': 5},
                                                  transform=self.aniaxes[1, 1].transAxes, ha="center")
+        self.aniaxes[1, 1].axis('off')
+        self.aniaxes[1, 0].axis('off')
+        self.aniaxes[1, 2].axis('off')
 
-        self.aniaxes[1, 2].set_title("Profil perpendiculaire")
-        self.aniaxes[1, 2].set_ylim(-100, 10)
+        self.aniaxes[0, 0].set_xticks([])
+        self.aniaxes[0, 0].set_yticks([])
+        self.aniaxes[0, 1].set_xticks([])
+        self.aniaxes[0, 1].set_yticks([])
+
+        self.aniaxes[0, 0].set_xlabel("$X$")
+        self.aniaxes[0, 0].set_ylabel("$Y$", rotation=0, loc="top")
+        self.aniaxes[0, 1].set_xlabel("$X$")
+        self.aniaxes[0, 1].set_ylabel("$Y$", rotation=0, loc="top")
+
+        self.aniaxes[0, 2].set_title("Profil perpendiculaire")
+        self.aniaxes[0, 2].set_ylim(-100*self.scale, 10*self.scale)
+        self.aniaxes[0, 2].set_xlim(0, self.X*self.scale)
+        self.aniaxes[0, 2].set_xlabel('$X$ (mm)')
+        self.aniaxes[0, 2].yaxis.set_label_position("right")
+        self.aniaxes[0, 2].yaxis.set_ticks_position('right')
+
+        # self.aniaxes[0, 2].set_ylabel(
+        #     r"$Z(X,{\color{red}y_0})$\\(mm)", rotation=0, loc="top", labelpad=30)
+
+        self.aniaxes[0, 2].text(1.05, 1.1,
+                                r"$Z(X,$",
+                                transform=self.aniaxes[0, 2].transAxes,
+                                ha="left", va="top",
+                                color="black")
+
+        self.aniaxes[0, 2].text(1.2, 1.1,
+                                r"$y_0$",
+                                transform=self.aniaxes[0, 2].transAxes,
+                                ha="left", va="top",
+                                color="magenta")
+
+        self.aniaxes[0, 2].text(1.26, 1.1,
+                                r"$)$(mm)",
+                                transform=self.aniaxes[0, 2].transAxes,
+                                ha="left", va="top",
+                                color="black")
+
+        self.animated_lines = [self.framed_showed, self.framed_drawed,
+                               self.perp_profile_showed, self.infostext, self.linescale, self.textscale, self.linescale2, self.textscale2]
 
     def dumb_init(self):
-        return self.framed_showed, self.framed_drawed, self.profile_showed, self.profile_fit_showed, self.perp_profile_showed, self.infostext
+        return self.animated_lines
 
     def animate(self) -> None:
-        # init
         self.init_anim()
-        # self.iterate_anim(0) # est en fait automatiquement appelé par FuncAnimation lorsque aucune init_func n'est donnée
-        # self.funcanim = animation.FuncAnimation(
-        #     self.anifig, self.iterate_anim, init_func=self.dumb_init, frames=self.nb_frames_anim, interval=1000 / self.fps, blit=True, repeat=False)
-
+        # manager = plt.get_current_fig_manager()
+        # manager.full_screen_toggle()
+        # plt.show()
+        # plt.close()
         if self.savemode:
             self.funcanim = animation.FuncAnimation(
-                self.anifig, self.iterate_anim, init_func=self.dumb_init, frames=self.nb_frames_anim, blit=True, repeat=False, interval=1)
-            self.anifig.tight_layout()
+                self.anifig, self.iterate_anim, init_func=self.dumb_init, frames=self.nb_frames_anim-10, blit=True, repeat=False, interval=1)
+            # self.anifig.tight_layout()
+            def progress_callback(i, n): self.bar.next()
             self.funcanim.save(
-                f"funcanim/funcanim_{self.date}_{self.vidname}.mp4", fps=self.fps, extra_args=['-vcodec', 'libx264'])
+                f"funcanim/funcanim_{self.date}_{self.vidname}.mp4", fps=3*self.fps, extra_args=['-vcodec', 'libx264'], progress_callback=progress_callback)
         else:
             self.funcanim = animation.FuncAnimation(
                 self.anifig, self.iterate_anim, init_func=self.dumb_init, frames=self.nb_frames_anim, interval=1000 / self.fps, blit=True, repeat=False)
-            self.anifig.tight_layout()
-            plt.show()
+            # self.anifig.tight_layout()
 
-    def export_npz(self) -> None:
+    def export_npz(self) -> str:
         """
         Effecue process (retournement)
         et exporte dans self.npz_name
@@ -263,8 +346,8 @@ class VideoData:
         self.process_before_export()
         self.npz_name = tools_vid.generate_file_name(self)
         npz_path = f"./final_datanpz/{self.npz_name}"
-        np.savez(npz_path, vidpath=self.vidpath, points=self.points,
-                 arrS=self.new_S_arr, arrY=self.new_Y_arr, Y=self.Y, height=self.height, mass=self.mass, scale=self.scale, theta_deg=self.theta_deg, t1=self.t1, t2=self.t2, info=self.info, timestamp=self.timestamp, date=self.date)
+        np.savez(npz_path, vidpath=self.vidpath, vidname=self.vidname, points=self.points,
+                 arrX=self.X_arr, arrY=self.Y_arr, Y=self.Y, height=self.height, mass=self.mass, theta_deg=self.theta_deg, t1=self.t1, t2=self.t2, info=self.info, timestamp=self.timestamp, date=self.date)
         return npz_path
 
     def process_before_export(self) -> None:
@@ -364,21 +447,22 @@ def ask_user_for_params(lastparams: dict) -> dict:
 def go(params: dict) -> None:
     # ! Historique
     params["timestamp"] = utilit.get_timestamp()
-    params["savemode"] = False
+
     p = VideoData(params)
 
     p.set_up()
+
     p.animate()
 
     print(p)
 
-    manager = plt.get_current_fig_manager()
-    manager.full_screen_toggle()
-    plt.show()
+    if "savemode" in params and not params["savemode"]:
+        print("heyyy")
+        plt.show()
 
-    p.export_npz()
-    print("Exported to npz")
-    p.add_to_history()
+    # p.export_npz()
+    # print("Exported to npz")
+    # p.add_to_history()
 
 
 def RUN_VIDEODATA(params: dict) -> None:
@@ -390,30 +474,34 @@ def RUN_VIDEODATA(params: dict) -> None:
     p.set_up()
     p.animate()
 
-    print(p)
+    # print(p)
 
-    p.export_npz()
-    print("Exported to npz")
-    p.add_to_history()
+    npz_path = p.export_npz()
+    print(f"Exported to {npz_path}")
+    # p.add_to_history()
 
 
-def main() -> None:
+def main(scale, savemode=False) -> None:
+
     # params = init_params()
     params = {
         "date": "2803",
-        "vidname": "m10",
-        "vidpath": "./vids/2803/m10.mp4",
-        "rotate": False,
-        "mass": 10,
-        "height": 2.008,
-        "theta_deg": 42.75,
+        "vidname": "m2-riv_centre",
+        "vidpath": "./vids/2803/m2-riv_centre.mp4",
+        "rotate": True,
+        "mass": 2,
+        "height": 5.907,
+        "theta_deg": 42.85,
         "t1": 0.0,
         "t2": 0,
-        "info": ""
-    }
+        "info": ""}
+
+    params["savemode"] = savemode
+    if scale:
+        params["scale"] = scales[params["date"]]
     go(params)
 
-    again = True
+    again = False
     while again:
         useragain = input("Run again ? (y/n)")
         if useragain == "y":
@@ -426,4 +514,17 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # main(scale=True, savemode=True)
+    params = {
+        "date": "2803",
+        "vidname": "m2",
+        "vidpath": "./vids/2803/m2.mp4",
+        "rotate": True,
+        "mass": 2,
+        "height": 2.008,
+        "theta_deg": 42.75,
+        "t1": 0.0,
+        "t2": 0,
+        "info": ""
+    }
+    RUN_VIDEODATA(params)

@@ -5,7 +5,7 @@ import json
 import os
 import D_ThreeD as ThreeD
 # all_params = []
-# with open("PARAMS.json", "r") as f:
+# with open("ALLPARAMS.json", "r") as f:
 #     all_params = json.load(f)
 
 # all_npz_paths = []
@@ -14,10 +14,12 @@ import D_ThreeD as ThreeD
 #     npz_path = VideoData.RUN_VIDEODATA(params)
 #     all_npz_paths.append(npz_path)
 
-
+# print(all_npz_paths)
 # np.savetxt("all_npz_paths.txt", all_npz_paths)
 
 for npz_name in os.listdir("./final_datanpz"):
     npz_path = f"./final_datanpz/{npz_name}"
     print("running", npz_path)
     three_d_data = ThreeD.RUN_TRID(npz_path, npz_name[:-4])
+
+print("All done.")

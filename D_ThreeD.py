@@ -11,6 +11,8 @@ from matplotlib.animation import FuncAnimation
 
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.size'] = 20  # Par exemple, 14 points
+plt.rcParams.update({'text.color': "gray",
+                     'axes.labelcolor': "gray"})
 
 index_plan = 0
 
@@ -577,7 +579,8 @@ if __name__ == "__main__":
     three_d_data.plot_plan()
 
     three_d_data.end_plot()
-    # three_d_data.anim_profile("profile")
+    # three_d_data.ax_profile.get_legend().get_title().set_color('red')
+    three_d_data.anim_profile("profile")
     # # three_d_data.anim_profile("fit")
     # # three_d_data.anim_profile("both")
     # # three_d_data.auto_plan()
